@@ -20,7 +20,7 @@ model User {
   department String
   year       Int
   gender     String
-  image      String
+  image      String?
   password   String
 
   createdAt  DateTime @default(now())
