@@ -1,0 +1,126 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id         String   @id @default(uuid())
+  scholar_no String   @unique
+  name       String
+  department String
+  year       Int
+  gender     String
+  image      String
+  password   String
+
+  createdAt  DateTime @default(now())
+
+  questions  Question[]
+  answers    Answer[]
+  votes      Vote[]
+  bookmarks  Bookmark[]
+}
+
+model Question {
+  id        String   @id @default(uuid())
+  title     String
+  body      String
+
+  authorId  String
+  author    User     @relation(fields: [authorId], references: [id])
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  answers   Answer[]
+  votes     Vote[]
+  bookmarks Bookmark[]
+  tags      QuestionTag[]
+}
+
+model Answer {
+  id         String   @id @default(uuid())
+  body       String
+
+  authorId   String
+  author     User     @relation(fields: [authorId], references: [id])
+
+  questionId String?
+  question   Question? @relation(fields: [questionId], references: [id])
+
+  parentId   String?
+  parent     Answer?   @relation("AnswerReplies", fields: [parentId], references: [id])
+  replies    Answer[]  @relation("AnswerReplies")
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  votes      Vote[]
+}
+
+enum VoteType {
+  UP
+  DOWN
+}
+
+model Vote {
+  id         String   @id @default(uuid())
+  type       VoteType
+
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+
+  questionId String?
+  question   Question? @relation(fields: [questionId], references: [id])
+
+  answerId   String?
+  answer     Answer?   @relation(fields: [answerId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+  @@unique([userId, answerId])
+}
+
+model Bookmark {
+  id         String   @id @default(uuid())
+
+  userId     String
+  questionId String
+
+  user       User     @relation(fields: [userId], references: [id])
+  question   Question @relation(fields: [questionId], references: [id])
+
+  createdAt  DateTime @default(now())
+
+  @@unique([userId, questionId])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+
+  questions QuestionTag[]
+}
+
+model QuestionTag {
+  questionId String
+  tagId      String
+
+  question   Question @relation(fields: [questionId], references: [id])
+  tag        Tag      @relation(fields: [tagId], references: [id])
+
+  @@id([questionId, tagId])
+}
+
+
