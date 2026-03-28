@@ -7,13 +7,16 @@ export const getUserByIdController = async (req, res) => {
       return res.status(400).json({ error: "User id is required" });
     }
 
+    if (req.userId !== id) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
     const user = await getUserById(id);
     if (!user) {
       return res.status(404).json({ error: "User not found" });
     }
 
-    const { password: _, ...safeUser } = user;
-    res.status(200).json({ user: safeUser });
+    res.status(200).json({ user });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

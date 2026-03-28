@@ -17,12 +17,15 @@ export default function Login() {
     setIsLoading(true)
     const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
     try {
-      const response = await axios.post(
+      const { data } = await axios.post(
         `${baseUrl}/api/user/verify`,
         { scholar, password },
         { headers: { 'Content-Type': 'application/json' } }
       )
-      navigate(`/profile/${response.data.user.id}`)
+      if (data.token) {
+        localStorage.setItem('token', data.token)
+      }
+      navigate(`/profile/${data.user.id}`)
     } catch (err) {
       setError(err.response?.data?.error ?? err.message ?? 'Sign in failed')
     } finally {

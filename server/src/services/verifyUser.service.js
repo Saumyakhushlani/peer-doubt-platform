@@ -2,6 +2,7 @@ import prisma from "../config/prisma.js";
 import bcrypt from "bcrypt";
 import axios from "axios";
 import https from "https";
+import jwt from "jsonwebtoken";
 
 function parseYear(value) {
   if (value == null) return new Date().getFullYear();
@@ -58,7 +59,7 @@ export const verifyUser = async ({ scholar, password }) => {
       avatarUrlFromName(displayName);
 
     const hashedPassword = await bcrypt.hash(password, 10);
-    const user = await prisma.user.create({
+    const created = await prisma.user.create({
       data: {
         scholar_no: scholar,
         name: displayName,
@@ -69,7 +70,14 @@ export const verifyUser = async ({ scholar, password }) => {
         password: hashedPassword,
       },
     });
-    return user;
+
+    const { password: __, ...safeUser } = created;
+    const token = jwt.sign(
+      { sub: created.id },
+      process.env.JWT_SECRET,
+      { expiresIn: "7d", algorithm: "HS256" }
+    );
+    return { user: safeUser, token };
   }
 
   const isPasswordMatch = await bcrypt.compare(password, existingUser.password);
@@ -81,5 +89,10 @@ export const verifyUser = async ({ scholar, password }) => {
   if (!safeUser.image) {
     safeUser.image = avatarUrlFromName(safeUser.name);
   }
-  return safeUser;
+  const token = jwt.sign(
+    { sub: existingUser.id },
+    process.env.JWT_SECRET,
+    { expiresIn: "7d", algorithm: "HS256" }
+  );
+  return { user: safeUser, token };
 };
