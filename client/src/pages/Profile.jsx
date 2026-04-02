@@ -1,424 +1,373 @@
-import { useEffect, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
-import axios from 'axios'
+import { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
+import axios from "axios";
+import { motion } from "framer-motion";
 import {
+  ArrowLeft,
   Award,
-  BookOpen,
+  Bookmark,
   Calendar,
-  ChevronRight,
+  ExternalLink,
   GraduationCap,
   Library,
   Loader2,
   MapPin,
   MessageSquareText,
+  Pencil,
+  Plus,
   ShieldCheck,
-  Sparkles,
   UserRound,
-} from 'lucide-react'
+  Mars,
+  Venus,
+} from "lucide-react";
 
-const baseUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000'
+const T = {
+  navy: "#0f3460",
+  amber: "#f59e0b",
+  emerald: "#10b981",
+  slate: "#64748b",
+  bg: "#f8fafc",
+};
 
-function GlassNav() {
-  return (
-    <header
-      className="sticky top-0 z-20 border-b border-transparent"
-      style={{
-        backgroundColor: 'rgba(248, 249, 255, 0.8)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
+const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
+
+const StatCard = ({ icon: Icon, value, label, color }) => (
+  <motion.div
+    whileHover={{ y: -5, boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.05)" }}
+    className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4"
+  >
+    <div
+      className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0"
+      style={{ backgroundColor: `${color}12`, color: color }}
     >
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
-        <Link
-          to="/"
-          className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-on-background"
-          style={{ letterSpacing: '-0.02em' }}
-        >
-          Peer Doubt
-        </Link>
-        <nav className="hidden items-center gap-8 text-sm font-medium text-on-surface/80 sm:flex">
-          <span className="cursor-default">Explore</span>
-          <span className="cursor-default">Questions</span>
-          <span className="cursor-default">Leaderboard</span>
-        </nav>
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-md bg-surface-container-highest text-on-surface"
-          aria-hidden
-        >
-          <UserRound className="h-5 w-5" strokeWidth={1.75} />
-        </div>
+      <Icon size={22} strokeWidth={2} />
+    </div>
+    <div className="min-w-0">
+      <div className="text-2xl font-bold text-slate-900 tabular-nums leading-none">
+        {value || 0}
       </div>
-    </header>
-  )
-}
+      <div className="text-[11px] font-bold text-slate-400 uppercase tracking-tight mt-1">
+        {label}
+      </div>
+    </div>
+  </motion.div>
+);
 
-function formatJoined(iso) {
-  if (!iso) return '—'
-  try {
-    return new Intl.DateTimeFormat('en-IN', {
-      month: 'long',
-      year: 'numeric',
-    }).format(new Date(iso))
-  } catch {
-    return '—'
-  }
-}
+const DetailRow = ({ icon: Icon, label, value, mono }) => (
+  <div className="flex items-start gap-4 py-4 border-b border-slate-50 last:border-0">
+    <div className="mt-1 text-slate-300">
+      <Icon size={18} />
+    </div>
+    <div>
+      <p className="text-[10px] uppercase tracking-[0.1em] font-black text-slate-400 mb-0.5">
+        {label}
+      </p>
+      <p
+        className={`text-sm font-semibold text-[#0f3460] ${mono ? "font-mono text-xs" : ""}`}
+      >
+        {value || "—"}
+      </p>
+    </div>
+  </div>
+);
+
+const Badge = ({ label, icon: Icon, color }) => (
+  <span
+    className="px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-wider border flex items-center gap-2"
+    style={{
+      backgroundColor: `${color}10`,
+      color: color,
+      borderColor: `${color}25`,
+    }}
+  >
+    {Icon && <Icon size={12} strokeWidth={3} />}
+    {label}
+  </span>
+);
 
 export default function Profile() {
-  const { id } = useParams()
-  const [user, setUser] = useState(null)
-  const [error, setError] = useState(null)
-  const [isLoading, setIsLoading] = useState(true)
+  const { id } = useParams();
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!id) {
-      setIsLoading(false)
-      setError('Missing profile id')
-      return
-    }
+    if (!id) return setLoading(false);
 
-    const token = localStorage.getItem('token')
-
-    async function load() {
-      setIsLoading(true)
-      setError(null)
-      if (!token) {
-        setError('Please sign in to view your profile')
-        setIsLoading(false)
-        return
-      }
+    const fetchProfile = async () => {
+      setLoading(true);
       try {
-        const { data } = await axios.get(`${baseUrl}/api/user/${id}`, {
-          headers: {
-            Accept: 'application/json',
-            Authorization: `Bearer ${token}`,
-          },
-        })
-        setUser(data.user)
+        const token = localStorage.getItem("token");
+        const { data } = await axios.get(`${BASE_URL}/api/user/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        setUser(data.user);
       } catch (err) {
-        setError(
-          err.response?.data?.error ??
-            err.message ??
-            'Could not load profile'
-        )
+        setError(err.response?.data?.error || "Scholar Record Not Found");
       } finally {
-        setIsLoading(false)
+        setLoading(false);
       }
-    }
+    };
+    fetchProfile();
+  }, [id]);
 
-    load()
-  }, [id])
+  const getGenderIcon = (gender = "") => {
+    const g = gender.toLowerCase();
+    if (g === "m" || g === "male") return Mars;
+    if (g === "f" || g === "female") return Venus;
+    return UserRound;
+  };
 
-  const counts = user?._count ?? {
+  if (loading)
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#f8fafc]">
+        <Loader2 className="animate-spin" style={{ color: T.navy }} size={32} />
+        <span className="mt-4 text-sm font-bold text-slate-500 tracking-widest uppercase">
+          Fetching Dossier...
+        </span>
+      </div>
+    );
+
+  if (error)
+    return (
+      <div className="min-h-screen flex items-center justify-center p-6 bg-[#f8fafc]">
+        <div className="text-center p-12 bg-white rounded-3xl shadow-sm border border-slate-200 max-w-sm">
+          <p className="text-red-500 font-bold mb-6">{error}</p>
+          <Link
+            to="/"
+            className="text-sm font-black uppercase tracking-widest text-[#0f3460] underline underline-offset-8"
+          >
+            Return to Portal
+          </Link>
+        </div>
+      </div>
+    );
+
+  const stats = user?._count || {
     questions: 0,
     answers: 0,
     votes: 0,
-  }
-  const tagChips = user?.department
-    ? [user.department, 'Peer scholar'].filter(Boolean)
-    : ['Peer scholar']
-
-  if (isLoading) {
-    return (
-      <div className="min-h-screen bg-surface">
-        <GlassNav />
-        <div className="flex min-h-[50vh] flex-col items-center justify-center gap-4 text-on-surface/70">
-          <Loader2 className="h-10 w-10 animate-spin text-primary" strokeWidth={1.75} />
-          <p className="text-sm font-medium">Loading profile…</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (error || !user) {
-    return (
-      <div className="min-h-screen bg-surface">
-        <GlassNav />
-        <div className="mx-auto max-w-lg px-6 py-20 text-center">
-          <p
-            className="rounded-lg px-4 py-3 text-sm"
-            style={{ backgroundColor: '#ffdad6', color: '#ba1a1a' }}
-          >
-            {error || 'User not found'}
-          </p>
-          <Link
-            to="/login"
-            className="mt-6 inline-block text-sm font-semibold text-secondary underline decoration-2 underline-offset-4"
-          >
-            Sign in
-          </Link>
-          <span className="mx-2 text-on-surface/40">·</span>
-          <Link
-            to="/"
-            className="mt-6 inline-block text-sm font-semibold text-on-surface/80 underline decoration-2 underline-offset-4"
-          >
-            Home
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const avatarSrc =
-    user.image ||
-    `https://ui-avatars.com/api/?name=${encodeURIComponent(user.name)}&size=256&background=d3e4fe&color=0b1c30&bold=true`
+    bookmarks: 0,
+  };
 
   return (
-    <div className="min-h-screen bg-surface pb-20">
-      <GlassNav />
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="min-h-screen bg-[#f8fafc] pb-20"
+      style={{ fontFamily: "'Inter', 'DM Sans', sans-serif" }}
+    >
+      <div className="max-w-5xl mx-auto px-6">
+        <div className="py-8">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-2 text-xs font-bold text-slate-400 hover:text-[#0f3460] transition-colors"
+          >
+            <ArrowLeft size={14} strokeWidth={3} /> BACK TO DASHBOARD
+          </Link>
+        </div>
 
-      <main className="mx-auto max-w-6xl px-6 pt-12">
-        <div className="mb-12 grid gap-10 lg:grid-cols-12 lg:gap-16">
-          <div className="space-y-10 lg:col-span-7">
-            <div>
-              <p className="mb-2 flex items-center gap-2 font-[family-name:var(--font-body)] text-sm font-medium text-secondary">
-                <Sparkles className="h-4 w-4" strokeWidth={1.75} />
-                Scholar profile
-              </p>
-              <h1
-                className="font-[family-name:var(--font-display)] text-4xl font-bold leading-tight text-on-background sm:text-5xl"
-                style={{ letterSpacing: '-0.02em' }}
-              >
-                The Digital Curator
-              </h1>
-              <p className="mt-4 max-w-xl text-base leading-relaxed text-on-surface/85">
-                Your contributions shape the knowledge base. This space reflects
-                your academic identity—structured, credible, and built for peers.
-              </p>
-            </div>
-
-            <section className="rounded-lg bg-surface-container-low p-8 sm:p-10">
-              <div className="flex flex-col gap-8 sm:flex-row sm:items-start">
-                <div className="relative shrink-0">
-                  <div
-                    className="overflow-hidden rounded-lg bg-surface-container-highest p-1"
-                    style={{
-                      boxShadow:
-                        '0 32px 64px -16px rgba(11, 28, 48, 0.06), 0 8px 24px rgba(11, 28, 48, 0.04)',
-                    }}
-                  >
-                    <img
-                      src={avatarSrc}
-                      alt=""
-                      width={140}
-                      height={140}
-                      className="h-36 w-36 rounded-md object-cover"
-                    />
-                  </div>
-                  <div
-                    className="absolute -bottom-2 -right-2 flex h-10 w-10 items-center justify-center rounded-md text-secondary-fixed"
-                    style={{
-                      background:
-                        'linear-gradient(135deg, #002045 0%, #1a365d 100%)',
-                    }}
-                    aria-hidden
-                  >
-                    <ShieldCheck className="h-5 w-5 text-white" strokeWidth={1.75} />
-                  </div>
-                </div>
-
-                <div className="min-w-0 flex-1 space-y-6">
-                  <div>
-                    <h2
-                      className="font-[family-name:var(--font-display)] text-2xl font-semibold text-on-background sm:text-3xl"
-                      style={{ letterSpacing: '-0.02em' }}
-                    >
-                      {user.name}
-                    </h2>
-                    <p className="mt-1 font-mono text-sm text-on-surface/70">
-                      Scholar No. {user.scholar_no}
-                    </p>
-                    <p className="mt-2 text-xs text-on-surface/50">
-                      Profile id · {user.id}
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {tagChips.map((tag) => (
-                      <span
-                        key={tag}
-                        className="inline-flex max-w-full truncate rounded-md px-3 py-1 text-xs font-medium text-on-secondary-container"
-                        style={{ backgroundColor: '#ffddb2' }}
-                        title={tag}
-                      >
-                        {tag}
-                      </span>
-                    ))}
-                  </div>
-
-                  <dl className="grid gap-4 sm:grid-cols-2">
-                    <div className="flex gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-container-highest text-primary">
-                        <GraduationCap className="h-5 w-5" strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-on-surface/55">
-                          Department
-                        </dt>
-                        <dd className="mt-0.5 text-sm font-medium leading-relaxed text-on-surface">
-                          {user.department}
-                        </dd>
-                      </div>
-                    </div>
-                    <div className="flex gap-3">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-container-highest text-primary">
-                        <Calendar className="h-5 w-5" strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-on-surface/55">
-                          Year & cohort
-                        </dt>
-                        <dd className="mt-0.5 text-sm font-medium text-on-surface">
-                          Year {user.year} · Joined {formatJoined(user.createdAt)}
-                        </dd>
-                      </div>
-                    </div>
-                    <div className="flex gap-3 sm:col-span-2">
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-surface-container-highest text-primary">
-                        <MapPin className="h-5 w-5" strokeWidth={1.75} />
-                      </div>
-                      <div>
-                        <dt className="text-xs font-medium uppercase tracking-wide text-on-surface/55">
-                          Campus
-                        </dt>
-                        <dd className="mt-0.5 text-sm font-medium text-on-surface">
-                          MANIT Bhopal · {user.gender}
-                        </dd>
-                      </div>
-                    </div>
-                  </dl>
-
-                  <div className="flex flex-wrap gap-3 pt-2">
-                    <button
-                      type="button"
-                      className="inline-flex items-center justify-center rounded-md px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-container focus-visible:ring-offset-2"
-                      style={{
-                        background:
-                          'linear-gradient(135deg, #002045 0%, #1a365d 100%)',
-                      }}
-                    >
-                      Edit profile
-                      <ChevronRight className="ml-1 h-4 w-4" strokeWidth={2} />
-                    </button>
-                    <button
-                      type="button"
-                      className="rounded-md bg-surface-container-highest px-5 py-2.5 text-sm font-semibold text-primary transition hover:bg-surface-container-high"
-                    >
-                      View activity
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </section>
-
-            <aside
-              className="rounded-lg px-6 py-5 italic"
+        <section className="bg-white rounded-[2rem] border border-slate-200 shadow-sm overflow-hidden">
+          <div className="h-32 w-full bg-[#0f3460] relative">
+            <div
+              className="absolute inset-0 opacity-10"
               style={{
-                backgroundColor: '#063665',
-                color: '#7ca0d5',
+                backgroundImage: "radial-gradient(#fff 1px, transparent 1px)",
+                backgroundSize: "24px 24px",
               }}
-            >
-              <p className="font-[family-name:var(--font-body)] text-sm leading-relaxed">
-                “Knowledge shared in good faith compounds across cohorts. Treat
-                every answer as a footnote in the department’s collective
-                bibliography.”
-              </p>
-              <p className="mt-3 text-xs not-italic opacity-90">
-                — Peer Doubt editorial charter
-              </p>
-            </aside>
-
-            <div className="rounded-xl bg-surface-container-highest p-5">
-              <div className="mb-3 flex items-center gap-2 text-xs font-medium text-on-surface/70">
-                <BookOpen className="h-4 w-4" strokeWidth={1.75} />
-                Scholar snapshot
-              </div>
-              <pre className="overflow-x-auto font-mono text-sm leading-relaxed text-on-surface">
-                <code>{`{
-  "scholar": "${user.scholar_no}",
-  "department": "${user.department.replace(/"/g, '\\"')}",
-  "year": ${user.year}
-}`}</code>
-              </pre>
-              <div
-                className="mt-4 h-1 w-12 rounded-full"
-                style={{ backgroundColor: '#815500' }}
-                aria-hidden
-              />
-            </div>
+            />
+            <div className="absolute bottom-0 h-1 w-full bg-gradient-to-r from-transparent via-[#f59e0b] to-transparent" />
           </div>
 
-          <aside className="space-y-8 lg:col-span-5">
-            <div
-              className="rounded-lg p-8"
-              style={{ backgroundColor: '#d3e4fe' }}
-            >
-              <h3
-                className="font-[family-name:var(--font-display)] text-lg font-semibold tracking-tight text-on-background"
-                style={{ letterSpacing: '-0.02em' }}
-              >
-                Standing
-              </h3>
-              <p className="mt-1 text-sm text-on-surface/75">
-                Activity from your questions, answers, and votes on the platform.
-              </p>
+          <div className="px-8 pb-10">
+            <div className="flex flex-col sm:flex-row justify-between items-end -mt-14 gap-6">
+              <div className="relative group">
+                <div className="w-28 h-28 rounded-3xl border-[6px] border-white shadow-lg overflow-hidden bg-slate-100">
+                  {user?.image ? (
+                    <img
+                      src={user.image}
+                      className="w-full h-full object-cover"
+                      alt="Profile"
+                    />
+                  ) : (
+                    <div className="w-full h-full flex items-center justify-center bg-[#0f3460] text-[#f59e0b] text-3xl font-black">
+                      {user?.name?.charAt(0)}
+                    </div>
+                  )}
+                </div>
+                <div className="absolute inset-0 rounded-3xl bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center cursor-pointer">
+                  <Plus className="text-white" size={24} />
+                </div>
+              </div>
 
-              <ul className="mt-8 space-y-8">
-                <li className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-surface-container-lowest text-primary shadow-sm">
-                    <MessageSquareText className="h-5 w-5" strokeWidth={1.75} />
+              <div className="flex gap-3">
+                <motion.button
+                  whileTap={{ scale: 0.95 }}
+                  className="px-6 py-3 bg-[#f59e0b] text-[#0f3460] font-black rounded-2xl text-xs uppercase tracking-widest shadow-md hover:shadow-lg transition-all"
+                >
+                  <div className="flex items-center gap-2">
+                    <Pencil size={14} strokeWidth={3} /> Edit Profile
                   </div>
-                  <div>
-                    <p className="text-2xl font-semibold tabular-nums text-on-background">
-                      {counts.questions}
-                    </p>
-                    <p className="text-sm text-on-surface/70">Questions asked</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-surface-container-lowest text-primary shadow-sm">
-                    <Library className="h-5 w-5" strokeWidth={1.75} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold tabular-nums text-on-background">
-                      {counts.answers}
-                    </p>
-                    <p className="text-sm text-on-surface/70">Answers posted</p>
-                  </div>
-                </li>
-                <li className="flex items-start gap-4">
-                  <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md bg-surface-container-lowest text-primary shadow-sm">
-                    <Award className="h-5 w-5" strokeWidth={1.75} />
-                  </div>
-                  <div>
-                    <p className="text-2xl font-semibold tabular-nums text-on-background">
-                      {counts.votes}
-                    </p>
-                    <p className="text-sm text-on-surface/70">Votes cast</p>
-                  </div>
-                </li>
-              </ul>
-
-              <Link
-                to="/"
-                className="mt-10 inline-flex items-center text-sm font-semibold text-secondary underline decoration-2 underline-offset-4"
-              >
-                Back to home
-              </Link>
+                </motion.button>
+                <button className="p-3 bg-slate-50 text-slate-400 rounded-2xl border border-slate-200 hover:bg-slate-100 transition-colors">
+                  <ExternalLink size={20} />
+                </button>
+              </div>
             </div>
 
-            <div className="rounded-lg bg-surface-container-low p-6">
-              <h4 className="text-sm font-semibold text-on-background">
-                Editorial note
-              </h4>
-              <p className="mt-3 text-sm leading-relaxed text-on-surface/80">
-                Spacing and tone replace hard lines. If something feels crowded,
-                add breath—not borders.
+            <div className="mt-8">
+              <h1 className="text-3xl font-black tracking-tight text-[#0f3460]">
+                {user?.name}
+              </h1>
+              <p className="text-sm font-bold text-slate-400 mt-1">
+                Scholar Reference:{" "}
+                <span className="font-mono text-[#f59e0b]">
+                  {user?.scholar_no}
+                </span>
+              </p>
+
+              <div className="flex flex-wrap gap-2 mt-5">
+                <Badge label={user?.department} color={T.navy} />
+                <Badge label={`Year ${user?.year}`} color="#7c3aed" />
+                <Badge
+                  label="Verified Access"
+                  icon={ShieldCheck}
+                  color={T.emerald}
+                />
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <motion.div
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6"
+        >
+          <StatCard
+            icon={MessageSquareText}
+            value={stats.questions}
+            label="Inquiries"
+            color={T.navy}
+          />
+          <StatCard
+            icon={Library}
+            value={stats.answers}
+            label="Solutions"
+            color="#7c3aed"
+          />
+          <StatCard
+            icon={Award}
+            value={stats.votes}
+            label="Endorsements"
+            color={T.emerald}
+          />
+          <StatCard
+            icon={Bookmark}
+            value={stats.bookmarks}
+            label="Archived"
+            color={T.amber}
+          />
+        </motion.div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mt-6">
+          <motion.div
+            initial={{ x: -20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="lg:col-span-2 bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm"
+          >
+            <div className="flex items-center gap-3 mb-8">
+              <div className="w-1.5 h-6 bg-[#f59e0b] rounded-full" />
+              <h2 className="text-lg font-black text-[#0f3460] uppercase tracking-tighter">
+                Academic Record
+              </h2>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-12">
+              <DetailRow
+                icon={UserRound}
+                label="Full Legal Name"
+                value={user?.name}
+              />
+              <DetailRow
+                icon={GraduationCap}
+                label="Department"
+                value={user?.department}
+              />
+              <DetailRow
+                icon={Calendar}
+                label="Registration Date"
+                value={new Date(user?.createdAt).toLocaleDateString("en-IN", {
+                  month: "long",
+                  year: "numeric",
+                })}
+              />
+              <DetailRow
+                icon={MapPin}
+                label="Campus Location"
+                value="MANIT Bhopal"
+              />
+              <DetailRow
+                icon={getGenderIcon(user?.gender)}
+                label="Gender"
+                value={user?.gender}
+              />
+            </div>
+          </motion.div>
+
+          <motion.div
+            initial={{ x: 20, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            transition={{ delay: 0.2 }}
+            className="bg-white rounded-[2rem] p-8 border border-slate-200 shadow-sm flex flex-col"
+          >
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-lg font-black text-[#0f3460] uppercase tracking-tighter">
+                Snapshot
+              </h2>
+              <div className="flex gap-1.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-amber-400" />
+                <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
+              </div>
+            </div>
+
+            <div className="bg-[#0f172a] rounded-2xl p-6 flex-1 font-mono text-[11px] text-[#f59e0b] leading-relaxed relative overflow-hidden">
+              <div className="absolute top-0 right-0 p-4 opacity-5 text-white">
+                <ShieldCheck size={80} />
+              </div>
+              <p className="text-slate-500 mb-4">// System Metadata</p>
+              <p>
+                <span className="text-slate-400">SCHOLAR:</span>{" "}
+                {user?.scholar_no}
+              </p>
+              <p>
+                <span className="text-slate-400">DEPT:</span>{" "}
+                {user?.department?.substring(0, 15)}...
+              </p>
+              <p>
+                <span className="text-slate-400">NETWORK:</span> MANIT_SECURE
+              </p>
+              <p>
+                <span className="text-slate-400">STATUS:</span> ACTIVE_SESSION
               </p>
             </div>
-          </aside>
+          </motion.div>
         </div>
-      </main>
-    </div>
-  )
+
+        <footer className="mt-6 bg-white rounded-[2rem] p-12 border border-slate-200 text-center shadow-sm">
+          <p className="text-[10px] font-black uppercase tracking-[0.3em] text-[#0f3460] mb-6">
+            Peer Doubt Editorial Charter
+          </p>
+          <p className="text-slate-500 italic text-sm max-w-xl mx-auto leading-relaxed">
+            "Knowledge shared in good faith compounds across cohorts. Treat
+            every answer as a footnote in the department's collective
+            bibliography."
+          </p>
+        </footer>
+      </div>
+    </motion.div>
+  );
 }
