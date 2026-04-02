@@ -1,0 +1,12 @@
+import express from "express";
+import { createQuestionController, getQuestionsByAuthorController, getQuestionByIdController, getQuestionsByTagController } from "../controllers/question.controller.js";
+import { authenticate } from "../middleware/auth.middleware.js";
+
+const router = express.Router();
+
+router.post("/", authenticate, createQuestionController);
+router.get("/author/:id", authenticate, getQuestionsByAuthorController);
+router.get("/:id", authenticate, getQuestionByIdController);
+router.get("/tag/:tag", authenticate, getQuestionsByTagController);
+
+export default router
