@@ -43,8 +43,8 @@ export const getQuestionsByTagController = async (req, res) => {
 export const getQuestionsController = async (req, res) => {
     try {
         const { cursor } = req.query;
-        const questions = await getQuestions(cursor);
-        res.status(200).json({ questions });
+        const { questions, hasMore } = await getQuestions(cursor);
+        res.status(200).json({ questions, hasMore });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

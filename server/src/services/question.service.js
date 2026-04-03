@@ -103,6 +103,51 @@ export const getQuestions = async (cursor, limit=15) => {
         skip: cursor ? 1 : 0,
         cursor: cursor ? { id: cursor } : undefined,
         orderBy: { createdAt: "desc" },
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    department: true,
+                    year: true,
+                    scholar_no: true,
+                    createdAt: true,
+                },
+            },
+            tags: {
+                include: {
+                    tag: true,
+                },
+            },
+            answers: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            name: true,
+                            image: true,
+                            department: true,
+                            year: true,
+                            scholar_no: true,
+                            createdAt: true,
+                        },
+                    },
+                },
+            },
+            _count: {
+                select: {
+                    answers: true,
+                    votes: true,
+                    bookmarks: true,
+                },
+            },
+        },
     });
-    return questions;
+    return {
+        questions,
+        hasMore: questions.length === limit,
+    };
 };
