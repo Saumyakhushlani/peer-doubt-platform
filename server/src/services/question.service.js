@@ -79,9 +79,55 @@ export const getQuestionById = async (id) => {
     const question = await prisma.question.findUnique({
         where: {
             id: id,
-        }
+        },
+        include: {
+            author: {
+                select: {
+                    id: true,
+                    name: true,
+                    image: true,
+                    department: true,
+                    year: true,
+                    scholar_no: true,
+                    createdAt: true,
+                },
+            },
+            tags: {
+                include: {
+                    tag: true,
+                },
+            },
+            answers: {
+                orderBy: { votes: { _count: "desc" } },
+                include: {
+                    author: {
+                        select: {
+                            id: true,
+                            name: true,
+                            image: true,
+                            department: true,
+                            year: true,
+                            scholar_no: true,
+                            createdAt: true,
+                        },
+                    },
+                },
+            },
+            _count: {
+                select: {
+                    answers: true,
+                    votes: true,
+                    bookmarks: true,
+                },
+            },
+        },
     });
-    return question;
+
+    if (!question) return null;
+    return {
+        ...question,
+        tags: question?.tags?.map((qt) => qt.tag) ?? [],
+    };
 };
 
 export const getQuestionsByTag = async (tag) => {

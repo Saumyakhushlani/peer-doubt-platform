@@ -5,6 +5,7 @@ import Login from './pages/Login.jsx'
 import Profile from './pages/Profile.jsx'
 import CreateQuestion from './pages/CreateQuestion.jsx'
 import Question from './pages/Question.jsx'
+import QuestionWithId from './pages/QuestionWithId.jsx'
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path="/profile/:id" element={<Profile />} />
         <Route path="/question/create" element={<CreateQuestion />} />
         <Route path="/question" element={<Question />} />
+        <Route path="/question/:id" element={<QuestionWithId />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
     </BrowserRouter>

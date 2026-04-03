@@ -131,6 +131,7 @@ export default function Question() {
 
             return (
               <li
+                onClick={() => navigate(`/question/${question.id}`)}
                 key={question.id}
                 className="rounded-2xl border border-slate-200 border-b-2 bg-white p-5 shadow-sm"
               >
@@ -150,7 +151,12 @@ export default function Question() {
 
                   <div className="min-w-0 flex-1">
                     <h2 className="text-xl font-bold leading-snug text-[#0f1419]">
-                      {question.title}
+                      <Link
+                        to={`/question/${question.id}`}
+                        className="hover:text-[#1e9df1] hover:underline"
+                      >
+                        {question.title}
+                      </Link>
                     </h2>
 
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
