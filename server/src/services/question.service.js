@@ -15,29 +15,43 @@ export const createQuestion = async (data) => {
         return question;
     }
 
-    const tagInputs = tags;
+    const uniqueNames = [
+        ...new Set(
+            tags
+                .filter((t) => typeof t === "string")
+                .map((t) => t.trim())
+                .filter(Boolean)
+        ),
+    ];
 
-    await prisma.$transaction(async (tx) => {
-        for (const input of tagInputs) {
-            if (typeof input === "string") {
-                const name = input.trim();
-                if (!name) continue;
-                const tag = await tx.tag.upsert({
-                    where: { name },
-                    create: { name },
-                    update: {},
-                });
-                await tx.questionTag.upsert({
-                    where: {
-                        questionId_tagId: { questionId: question.id, tagId: tag.id },
-                    },
-                    create: { questionId: question.id, tagId: tag.id },
-                    update: {},
-                });
-                continue;
-            }
-        }
-    });
+    if (uniqueNames.length === 0) {
+        return question;
+    }
+
+    await prisma.$transaction(
+        async (tx) => {
+            await Promise.all(
+                uniqueNames.map(async (name) => {
+                    const tag = await tx.tag.upsert({
+                        where: { name },
+                        create: { name },
+                        update: {},
+                    });
+                    await tx.questionTag.upsert({
+                        where: {
+                            questionId_tagId: {
+                                questionId: question.id,
+                                tagId: tag.id,
+                            },
+                        },
+                        create: { questionId: question.id, tagId: tag.id },
+                        update: {},
+                    });
+                })
+            );
+        },
+        { maxWait: 10_000, timeout: 30_000 }
+    );
 
     const questionWithTags = await prisma.question.findUnique({
         where: { id: question.id },

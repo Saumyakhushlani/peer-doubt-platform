@@ -13,3 +13,15 @@ export function verifyAccessToken(token) {
   const secret = requireSecret();
   return jwt.verify(token, secret, { algorithms: ["HS256"] });
 }
+
+export function getUserIdFromToken(token) {
+  if (!token || typeof token !== "string") {
+    throw new Error("Token required");
+  }
+  const payload = verifyAccessToken(token);
+  const userId = payload.sub;
+  if (!userId || typeof userId !== "string") {
+    throw new Error("Invalid token payload");
+  }
+  return userId;
+}
