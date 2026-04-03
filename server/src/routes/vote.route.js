@@ -10,3 +10,5 @@ router.get("/answer/:id", authenticate, getVotesByAnswerController);
 router.get("/question/:id/count", authenticate, getVotesCountByQuestionController);
 router.get("/answer/:id/count", authenticate, getVotesCountByAnswerController);
 router.get("/user/:id", authenticate, getVotesByUserController);
+
+export default router;
