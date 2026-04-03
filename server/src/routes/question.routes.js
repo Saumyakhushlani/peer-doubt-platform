@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post("/", authenticate, createQuestionController);
 router.get("/author/:id", authenticate, getQuestionsByAuthorController);
-router.get("/:id", authenticate, getQuestionByIdController);
 router.get("/tag/:tag", authenticate, getQuestionsByTagController);
+router.get("/:id", authenticate, getQuestionByIdController);
 
 export default router

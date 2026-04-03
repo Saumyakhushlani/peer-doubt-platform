@@ -1,4 +1,4 @@
-import prisma from "../config/prisma";
+import prisma from "../config/prisma.js";
 
 export const createBookmark = async (data) => {
     const bookmark = await prisma.bookmark.create({

@@ -1,4 +1,4 @@
-import { createQuestion, getQuestionsByAuthor, getQuestionById, getQuestionsByTag } from "../services/question.service";
+import { createQuestion, getQuestionsByAuthor, getQuestionById, getQuestionsByTag } from "../services/question.service.js";
 
 export const createQuestionController = async (req, res) => {
     try {

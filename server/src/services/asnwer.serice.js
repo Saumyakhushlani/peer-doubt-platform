@@ -1,4 +1,4 @@
-import prisma from "../config/prisma";
+import prisma from "../config/prisma.js";
 
 export const createAnswer = async (data) => {
     const answer = await prisma.answer.create({

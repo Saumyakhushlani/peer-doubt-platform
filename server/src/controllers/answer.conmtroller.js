@@ -1,4 +1,4 @@
-import { createAnswer, getAnswersByQuestion, getAnswerById, getAnswersByAuthor } from "../services/answer.service.js";
+import { createAnswer, getAnswersByQuestion, getAnswerById, getAnswersByAuthor } from "../services/asnwer.serice.js";
 
 export const createAnswerController = async (req, res) => {
     try {
