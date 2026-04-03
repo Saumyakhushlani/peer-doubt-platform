@@ -82,3 +82,13 @@ export const getQuestionsByTag = async (tag) => {
     });
     return questions;
 };
+
+export const getQuestions = async (cursor, limit=15) => {
+    const questions = await prisma.question.findMany({
+        take: limit,
+        skip: cursor ? 1 : 0,
+        cursor: cursor ? { id: cursor } : undefined,
+        orderBy: { createdAt: "desc" },
+    });
+    return questions;
+};

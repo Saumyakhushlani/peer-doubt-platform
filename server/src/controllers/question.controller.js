@@ -1,4 +1,4 @@
-import { createQuestion, getQuestionsByAuthor, getQuestionById, getQuestionsByTag } from "../services/question.service.js";
+import { createQuestion, getQuestionsByAuthor, getQuestionById, getQuestionsByTag, getQuestions } from "../services/question.service.js";
 
 export const createQuestionController = async (req, res) => {
     try {
@@ -40,3 +40,12 @@ export const getQuestionsByTagController = async (req, res) => {
     }
 };
 
+export const getQuestionsController = async (req, res) => {
+    try {
+        const { cursor } = req.query;
+        const questions = await getQuestions(cursor);
+        res.status(200).json({ questions });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};

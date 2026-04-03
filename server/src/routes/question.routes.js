@@ -8,5 +8,6 @@ router.post("/", authenticate, createQuestionController);
 router.get("/author/:id", authenticate, getQuestionsByAuthorController);
 router.get("/tag/:tag", authenticate, getQuestionsByTagController);
 router.get("/:id", authenticate, getQuestionByIdController);
+router.get("/", authenticate, getQuestionsController);
 
 export default router
