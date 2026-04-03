@@ -76,7 +76,7 @@ A **dedicated Q&A platform** where students can:
 
 ## 🔐 User Authentication
 
-- Register using **MANIT institutional email (`@manit.ac.in`)**
+- Register using **MANIT institutional email (`@stu.manit.ac.in`)**
 - Secure login system
 - Profile page with:
   - Display name
