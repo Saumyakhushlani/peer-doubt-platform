@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import MarkdownPreview from "@uiw/react-markdown-preview";
 import "@uiw/react-markdown-preview/markdown.css";
-import { ArrowLeft, Bookmark, Loader2, MessageSquare, ThumbsUp } from "lucide-react";
+import { ArrowLeft, Bookmark, Loader2, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -46,6 +46,9 @@ export default function QuestionWithId() {
     const [question, setQuestion] = useState(null);
     const [error, setError] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [myVote, setMyVote] = useState(null);
+    const [voteCount, setVoteCount] = useState(0);
+    const [voting, setVoting] = useState(false);
 
     useEffect(() => {
         if (!id) {
@@ -66,6 +69,7 @@ export default function QuestionWithId() {
                     headers: { Authorization: `Bearer ${token}` },
                 });
                 setQuestion(data.question ?? null);
+                setVoteCount(data.question?._count?.votes ?? 0);
             } catch (err) {
                 setError(
                     err.response?.data?.error ??
@@ -80,6 +84,57 @@ export default function QuestionWithId() {
 
         fetchQuestion();
     }, [id, navigate]);
+
+    useEffect(() => {
+        async function fetchMyVote() {
+            const token = localStorage.getItem("token");
+            if (!token || !id) return;
+            try {
+                const { data } = await axios.get(`${BASE_URL}/api/vote/my`, {
+                    headers: { Authorization: `Bearer ${token}` }
+                });
+                const v = data.votes?.find(v => v.questionId === id);
+                if (v) setMyVote(v.type);
+            } catch {}
+        }
+        fetchMyVote();
+    }, [id]);
+
+    async function handleVote(type) {
+        if (voting) return;
+        const token = localStorage.getItem("token");
+        if (!token) { navigate("/login"); return; }
+
+        setVoting(true);
+        const currentVote = myVote;
+
+        if (currentVote === type) {
+            setMyVote(null);
+            setVoteCount(prev => prev - (type === "UP" ? 1 : -1));
+            try {
+                await axios.delete(`${BASE_URL}/api/vote/question/${id}`, { headers: { Authorization: `Bearer ${token}` } });
+            } catch {
+                setMyVote(currentVote);
+                setVoteCount(prev => prev + (type === "UP" ? 1 : -1));
+            }
+        } else {
+            let diff = 0;
+            if (currentVote === "UP" && type === "DOWN") diff = -2;
+            else if (currentVote === "DOWN" && type === "UP") diff = 2;
+            else if (!currentVote && type === "UP") diff = 1;
+            else if (!currentVote && type === "DOWN") diff = -1;
+
+            setMyVote(type);
+            setVoteCount(prev => prev + diff);
+            try {
+                await axios.post(`${BASE_URL}/api/vote`, { type, questionId: id }, { headers: { Authorization: `Bearer ${token}` } });
+            } catch {
+                setMyVote(currentVote);
+                setVoteCount(prev => prev - diff);
+            }
+        }
+        setVoting(false);
+    }
 
     if (loading) {
         return (
@@ -219,10 +274,39 @@ export default function QuestionWithId() {
                                 {count.answers ?? 0}{" "}
                                 {(count.answers ?? 0) === 1 ? "answer" : "answers"}
                             </span>
-                            <span className="inline-flex items-center gap-2">
-                                <ThumbsUp className="h-4 w-4 text-slate-400" />
-                                {count.votes ?? 0} {(count.votes ?? 0) === 1 ? "vote" : "votes"}
-                            </span>
+                            <div className="inline-flex items-center gap-1.5">
+                                <button
+                                    onClick={() => handleVote("UP")}
+                                    disabled={voting}
+                                    title="Upvote"
+                                    className={`transition-colors duration-150 disabled:opacity-50 ${
+                                        myVote === "UP" ? "text-[#1e9df1]" : "text-slate-500 hover:text-[#1e9df1]"
+                                    }`}
+                                >
+                                    <ThumbsUp
+                                        className={`h-4 w-4 shrink-0 transition-colors duration-150 ${
+                                            myVote === "UP" ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                                        }`}
+                                    />
+                                </button>
+                                <span className={`min-w-[1.5ch] text-center font-bold text-sm ${voteCount > 0 ? "text-[#1e9df1]" : voteCount < 0 ? "text-red-500" : "text-slate-500"}`}>
+                                    {voteCount}
+                                </span>
+                                <button
+                                    onClick={() => handleVote("DOWN")}
+                                    disabled={voting}
+                                    title="Downvote"
+                                    className={`transition-colors duration-150 disabled:opacity-50 ${
+                                        myVote === "DOWN" ? "text-red-500" : "text-slate-500 hover:text-red-500"
+                                    }`}
+                                >
+                                    <ThumbsDown
+                                        className={`h-4 w-4 shrink-0 transition-colors duration-150 ${
+                                            myVote === "DOWN" ? "fill-red-500 text-red-500" : "text-slate-400"
+                                        }`}
+                                    />
+                                </button>
+                            </div>
                             <span className="inline-flex items-center gap-2">
                                 <Bookmark className="h-4 w-4 text-slate-400" />
                                 {count.bookmarks ?? 0}{" "}

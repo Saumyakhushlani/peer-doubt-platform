@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MarkdownPreview from "@uiw/react-markdown-preview";
-import { Bookmark, MessageSquare, ThumbsUp } from "lucide-react";
+import { Bookmark, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -39,7 +39,6 @@ export default function Question() {
   const [voteCounts, setVoteCounts] = useState({});
   const [votingId, setVotingId]     = useState(null);
 
-  // ── Fetch paginated questions ──────────────────────────────────────────────
   const fetchPage = useCallback(async (cursor) => {
     const append = cursor != null;
     try {
@@ -73,7 +72,6 @@ export default function Question() {
 
   useEffect(() => { fetchPage(null); }, [fetchPage]);
 
-  // ── Fetch current user's existing votes on mount ───────────────────────────
   useEffect(() => {
     async function fetchMyVotes() {
       const token = localStorage.getItem("token");
@@ -88,14 +86,12 @@ export default function Question() {
         });
         setMyVotes(voteMap);
       } catch {
-        // silently ignore — voting just won't show pre-filled state
       }
     }
     fetchMyVotes();
   }, []);
 
-  // ── Handle upvote toggle ──────────────────────────────────────────────
-  async function handleVote(e, questionId) {
+  async function handleVote(e, questionId, type) {
     e.stopPropagation();
     if (votingId === questionId) return;
 
@@ -105,42 +101,47 @@ export default function Question() {
     const currentVoteType = myVotes[questionId];
     setVotingId(questionId);
 
-    if (currentVoteType === "UP") {
-      // Optimistic: remove vote
+    if (currentVoteType === type) {
       setMyVotes((prev) => { const n = { ...prev }; delete n[questionId]; return n; });
-      setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - 1 }));
+      setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - (type === "UP" ? 1 : -1) }));
 
       try {
         await axios.delete(`${BASE_URL}/api/vote/question/${questionId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
       } catch {
-        // Rollback on failure
-        setMyVotes((prev) => ({ ...prev, [questionId]: "UP" }));
-        setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + 1 }));
+        setMyVotes((prev) => ({ ...prev, [questionId]: type }));
+        setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + (type === "UP" ? 1 : -1) }));
       }
     } else {
-      // Optimistic: add vote
-      setMyVotes((prev) => ({ ...prev, [questionId]: "UP" }));
-      setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + 1 }));
+      let diff = 0;
+      if (currentVoteType === "UP" && type === "DOWN") diff = -2;
+      else if (currentVoteType === "DOWN" && type === "UP") diff = 2;
+      else if (!currentVoteType && type === "UP") diff = 1;
+      else if (!currentVoteType && type === "DOWN") diff = -1;
+
+      setMyVotes((prev) => ({ ...prev, [questionId]: type }));
+      setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + diff }));
 
       try {
         await axios.post(
           `${BASE_URL}/api/vote`,
-          { type: "UP", questionId },
+          { type, questionId },
           { headers: { Authorization: `Bearer ${token}` } }
         );
       } catch {
-        // Rollback on failure
-        setMyVotes((prev) => { const n = { ...prev }; delete n[questionId]; return n; });
-        setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - 1 }));
+        if (currentVoteType) {
+          setMyVotes((prev) => ({ ...prev, [questionId]: currentVoteType }));
+        } else {
+          setMyVotes((prev) => { const n = { ...prev }; delete n[questionId]; return n; });
+        }
+        setVoteCounts((prev) => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - diff }));
       }
     }
 
     setVotingId(null);
   }
 
-  // ── Helpers ────────────────────────────────────────────────────────────────
   function loadMore() {
     if (!hasMore || loadingMore || questions.length === 0) return;
     fetchPage(questions[questions.length - 1].id);
@@ -177,7 +178,6 @@ export default function Question() {
   const filteredQuestions = getFilteredQuestions();
   const allUniqueTags     = getAllUniqueTags();
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && questions.length === 0) {
     return (
       <div className="min-h-screen bg-[#f0f7fc] px-6 py-16 text-center text-slate-600">
@@ -186,12 +186,10 @@ export default function Question() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#f0f7fc] px-6 pb-20 pt-10 font-sans text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
 
-        {/* Header */}
         <div className="flex flex-wrap items-center justify-between gap-4">
           <h1 className="text-2xl font-black text-[#0f1419]">Questions</h1>
           <Link
@@ -202,7 +200,6 @@ export default function Question() {
           </Link>
         </div>
 
-        {/* Tag Filter */}
         {allUniqueTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -235,14 +232,12 @@ export default function Question() {
           </div>
         )}
 
-        {/* Error banner */}
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             {error}
           </div>
         )}
 
-        {/* Question list */}
         <ul className="flex flex-col gap-4">
           {filteredQuestions.map((question) => {
             const author    = question.author;
@@ -262,7 +257,6 @@ export default function Question() {
               >
                 <div className="flex gap-3">
 
-                  {/* Avatar */}
                   <Link
                     to={`/profile/${question.authorId}`}
                     className="shrink-0"
@@ -275,7 +269,6 @@ export default function Question() {
 
                   <div className="min-w-0 flex-1">
 
-                    {/* Title */}
                     <h2 className="text-xl font-bold leading-snug text-[#0f1419]">
                       <Link
                         to={`/question/${question.id}`}
@@ -286,7 +279,6 @@ export default function Question() {
                       </Link>
                     </h2>
 
-                    {/* Meta */}
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
                       <Link
                         to={`/profile/${question.authorId}`}
@@ -306,7 +298,6 @@ export default function Question() {
                       )}
                     </div>
 
-                    {/* Tags */}
                     {tagRows.length > 0 && (
                       <div className="relative mt-3 min-h-7 overflow-hidden">
                         <div className="flex flex-nowrap gap-2 overflow-hidden pr-8">
@@ -327,7 +318,6 @@ export default function Question() {
                       </div>
                     )}
 
-                    {/* Body preview */}
                     <div className="mt-3 line-clamp-4 text-sm text-slate-600" data-color-mode="light">
                       <MarkdownPreview
                         source={question.body ?? ""}
@@ -340,7 +330,6 @@ export default function Question() {
                       />
                     </div>
 
-                    {/* Stats row */}
                     <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
 
                       <span className="inline-flex items-center gap-1.5">
@@ -348,21 +337,37 @@ export default function Question() {
                         {nAnswers} {nAnswers === 1 ? "answer" : "answers"}
                       </span>
 
-                      {/* Upvote button */}
-                      <button
-                        onClick={(e) => handleVote(e, question.id)}
-                        disabled={votingId === question.id}
-                        className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${
-                          voteType === "UP" ? "text-[#1e9df1]" : "text-slate-500 hover:text-[#1e9df1]"
-                        }`}
-                      >
-                        <ThumbsUp
-                          className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
-                            voteType === "UP" ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                      <div className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={(e) => handleVote(e, question.id, "UP")}
+                          disabled={votingId === question.id}
+                          title="Upvote"
+                          className={`transition-colors duration-150 disabled:opacity-50 ${
+                            voteType === "UP" ? "text-[#1e9df1]" : "text-slate-500 hover:text-[#1e9df1]"
                           }`}
-                        />
-                        {nVotes} {nVotes === 1 ? "vote" : "votes"}
-                      </button>
+                        >
+                          <ThumbsUp
+                            className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
+                              voteType === "UP" ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                            }`}
+                          />
+                        </button>
+                        <span className={`min-w-[1.5ch] text-center font-bold ${nVotes > 0 ? "text-[#1e9df1]" : nVotes < 0 ? "text-red-500" : "text-slate-500"}`}>{nVotes}</span>
+                        <button
+                          onClick={(e) => handleVote(e, question.id, "DOWN")}
+                          disabled={votingId === question.id}
+                          title="Downvote"
+                          className={`transition-colors duration-150 disabled:opacity-50 ${
+                            voteType === "DOWN" ? "text-red-500" : "text-slate-500 hover:text-red-500"
+                          }`}
+                        >
+                          <ThumbsDown
+                            className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
+                              voteType === "DOWN" ? "fill-red-500 text-red-500" : "text-slate-400"
+                            }`}
+                          />
+                        </button>
+                      </div>
 
                       <span className="inline-flex items-center gap-1.5">
                         <Bookmark className="h-3.5 w-3.5 shrink-0 text-slate-400" />
@@ -377,7 +382,6 @@ export default function Question() {
           })}
         </ul>
 
-        {/* Empty states */}
         {questions.length === 0 && !error && (
           <p className="text-center text-slate-500">No questions yet.</p>
         )}
@@ -385,7 +389,6 @@ export default function Question() {
           <p className="text-center text-slate-500">No questions match the selected tags.</p>
         )}
 
-        {/* Load more */}
         {hasMore && filteredQuestions.length > 0 && (
           <button
             type="button"
