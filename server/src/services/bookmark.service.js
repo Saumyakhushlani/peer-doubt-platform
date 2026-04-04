@@ -5,9 +5,16 @@ export const createBookmark = async (data) => {
         data: {
             userId: data.userId,
             questionId: data.questionId,
-        }
+        },
     });
     return bookmark;
+};
+
+export const removeBookmark = async ({ userId, questionId }) => {
+    const result = await prisma.bookmark.deleteMany({
+        where: { userId, questionId },
+    });
+    return { deleted: result.count };
 };
 
 export const getBookmarksByUser = async (userId) => {

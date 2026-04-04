@@ -9,6 +9,7 @@ export async function getUserById(id) {
           questions: true,
           answers: true,
           votes: true,
+          bookmarks: true,
         },
       },
     },

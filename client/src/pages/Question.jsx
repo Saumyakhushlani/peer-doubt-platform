@@ -28,16 +28,20 @@ function nameInitials(name) {
 export default function Question() {
   const navigate = useNavigate();
 
-  const [questions, setQuestions]     = useState([]);
-  const [error, setError]             = useState(null);
-  const [loading, setLoading]         = useState(true);
+  const [questions, setQuestions] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore]         = useState(true);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedTags, setSelectedTags] = useState([]);
 
-  const [myVotes, setMyVotes]       = useState({});
+  const [myVotes, setMyVotes] = useState({});
   const [voteCounts, setVoteCounts] = useState({});
-  const [votingId, setVotingId]     = useState(null);
+  const [votingId, setVotingId] = useState(null);
+
+  const [myBookmarks, setMyBookmarks] = useState({});
+  const [bookmarkCounts, setBookmarkCounts] = useState({});
+  const [bookmarkingId, setBookmarkingId] = useState(null);
 
   const fetchPage = useCallback(async (cursor) => {
     const append = cursor != null;
@@ -59,7 +63,16 @@ export default function Question() {
 
       setVoteCounts((prev) => {
         const next = { ...prev };
-        batch.forEach((q) => { next[q.id] = q._count?.votes ?? 0; });
+        batch.forEach((q) => {
+          next[q.id] = q._count?.votes ?? 0;
+        });
+        return next;
+      });
+      setBookmarkCounts((prev) => {
+        const next = { ...prev };
+        batch.forEach((q) => {
+          next[q.id] = q._count?.bookmarks ?? 0;
+        });
         return next;
       });
     } catch (err) {
@@ -89,6 +102,31 @@ export default function Question() {
       }
     }
     fetchMyVotes();
+  }, []);
+
+  useEffect(() => {
+    async function loadBookmarks() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const { data: me } = await axios.get(`${BASE_URL}/api/user/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const uid = me.userId;
+        if (!uid) return;
+        const { data } = await axios.get(`${BASE_URL}/api/bookmark/user/${uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const map = {};
+        (data.bookmarks ?? []).forEach((b) => {
+          if (b.questionId) map[b.questionId] = true;
+        });
+        setMyBookmarks(map);
+      } catch {
+        
+      }
+    }
+    loadBookmarks();
   }, []);
 
   async function handleVote(e, questionId, type) {
@@ -142,6 +180,66 @@ export default function Question() {
     setVotingId(null);
   }
 
+  async function handleBookmark(e, questionId, currentCount) {
+    e.stopPropagation();
+    if (bookmarkingId === questionId) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const isOn = !!myBookmarks[questionId];
+    setBookmarkingId(questionId);
+
+    if (isOn) {
+      setMyBookmarks((prev) => {
+        const n = { ...prev };
+        delete n[questionId];
+        return n;
+      });
+      setBookmarkCounts((prev) => ({
+        ...prev,
+        [questionId]: Math.max(0, (prev[questionId] ?? currentCount) - 1),
+      }));
+      try {
+        await axios.delete(`${BASE_URL}/api/bookmark/question/${questionId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        setMyBookmarks((prev) => ({ ...prev, [questionId]: true }));
+        setBookmarkCounts((prev) => ({
+          ...prev,
+          [questionId]: (prev[questionId] ?? 0) + 1,
+        }));
+      }
+    } else {
+      setMyBookmarks((prev) => ({ ...prev, [questionId]: true }));
+      setBookmarkCounts((prev) => ({
+        ...prev,
+        [questionId]: (prev[questionId] ?? currentCount) + 1,
+      }));
+      try {
+        await axios.post(
+          `${BASE_URL}/api/bookmark`,
+          { questionId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch {
+        setMyBookmarks((prev) => {
+          const n = { ...prev };
+          delete n[questionId];
+          return n;
+        });
+        setBookmarkCounts((prev) => ({
+          ...prev,
+          [questionId]: currentCount,
+        }));
+      }
+    }
+
+    setBookmarkingId(null);
+  }
   function loadMore() {
     if (!hasMore || loadingMore || questions.length === 0) return;
     fetchPage(questions[questions.length - 1].id);
@@ -176,7 +274,7 @@ export default function Question() {
   }
 
   const filteredQuestions = getFilteredQuestions();
-  const allUniqueTags     = getAllUniqueTags();
+  const allUniqueTags = getAllUniqueTags();
 
   if (loading && questions.length === 0) {
     return (
@@ -211,11 +309,10 @@ export default function Question() {
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${
-                    isActive
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${isActive
                       ? "bg-[#1e9df1] text-white"
                       : "border border-slate-200 bg-white text-slate-500 hover:border-[#1e9df1] hover:text-[#1e9df1]"
-                  }`}
+                    }`}
                 >
                   #{tag}
                 </button>
@@ -240,14 +337,14 @@ export default function Question() {
 
         <ul className="flex flex-col gap-4">
           {filteredQuestions.map((question) => {
-            const author    = question.author;
-            const tagRows   = Array.isArray(question.tags) ? question.tags : [];
-            const asked     = formatAskedAt(question.createdAt);
-            const c         = question._count ?? {};
-            const nAnswers  = c.answers ?? 0;
-            const nBookmarks = c.bookmarks ?? 0;
-            const nVotes    = voteCounts[question.id] ?? c.votes ?? 0;
-            const voteType  = myVotes[question.id];
+            const author = question.author;
+            const tagRows = Array.isArray(question.tags) ? question.tags : [];
+            const asked = formatAskedAt(question.createdAt);
+            const c = question._count ?? {};
+            const nAnswers = c.answers ?? 0;
+            const nBookmarks = bookmarkCounts[question.id] ?? c.bookmarks ?? 0;
+            const nVotes = voteCounts[question.id] ?? c.votes ?? 0;
+            const voteType = myVotes[question.id];
 
             return (
               <li
@@ -369,10 +466,24 @@ export default function Question() {
                         </button>
                       </div>
 
-                      <span className="inline-flex items-center gap-1.5">
-                        <Bookmark className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                        {nBookmarks} {nBookmarks === 1 ? "bookmark" : "bookmarks"}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) =>
+                          handleBookmark(e, question.id, c.bookmarks ?? 0)
+                        }
+                        disabled={bookmarkingId === question.id}
+                        className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${
+                          myBookmarks[question.id]
+                            ? "text-[#1e9df1]"
+                            : "text-slate-500 hover:text-[#1e9df1]"
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          <Bookmark className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${myBookmarks[question.id] ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                            }`} />
+                          {nBookmarks} {nBookmarks === 1 ? "bookmark" : "bookmarks"}
+                        </span>
+                      </button>
 
                     </div>
                   </div>
