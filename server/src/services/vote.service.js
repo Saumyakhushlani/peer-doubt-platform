@@ -53,7 +53,8 @@ export const getVotesByUser = async (userId) => {
     const votes = await prisma.vote.findMany({
         where: {
             userId: userId,
-        }
+        },
+        
     });
     return votes;
 };

@@ -14,7 +14,26 @@ export const getBookmarksByUser = async (userId) => {
     const bookmarks = await prisma.bookmark.findMany({
         where: {
             userId: userId,
-        }
+        },
+        include: {
+            question: {
+                include: {
+                    author: true,
+                    tags: {
+                        include: {
+                            tag: true,
+                        },
+                    },
+                    _count: {
+                        select: {
+                            answers: true,
+                            votes: true,
+                            bookmarks: true,
+                        },
+                    },
+                },
+            },
+        },
     });
     return bookmarks;
 };

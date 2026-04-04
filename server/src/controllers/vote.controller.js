@@ -52,9 +52,9 @@ export const getVotesCountByAnswerController = async (req, res) => {
 
 export const getVotesByUserController = async (req, res) => {
     try {
-        const { userId } = req.params;
-        const votes = await getVotesByUser(userId);
-        res.status(200).json({ votes });
+        const { id } = req.params;
+        const count = await getVotesByUser(id);
+        res.status(200).json({ count });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }

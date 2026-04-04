@@ -70,7 +70,26 @@ export const getQuestionsByAuthor = async (id) => {
     const questions = await prisma.question.findMany({
         where: {
             authorId: id,
-        }
+        },
+        include: {
+            author: {
+                select: {
+                    name: true,
+                },
+            },
+            tags: {
+                include: {
+                    tag: true,
+                },
+            },
+            _count: {
+                select: {
+                    answers: true,
+                    votes: true,
+                    bookmarks: true,
+                },
+            },
+        },
     });
     return questions;
 };
