@@ -135,16 +135,27 @@ export const getQuestionById = async (id) => {
             _count: {
                 select: {
                     answers: true,
-                    votes: true,
                     bookmarks: true,
                 },
             },
+            votes: {
+                select: { type: true }
+            }
         },
     });
 
     if (!question) return null;
+    
+    // Compute net votes
+    const netVotes = question.votes ? question.votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0) : 0;
+    delete question.votes;
+    
     return {
         ...question,
+        _count: {
+            ...question._count,
+            votes: netVotes
+        },
         tags: question?.tags?.map((qt) => qt.tag) ?? [],
     };
 };
@@ -205,14 +216,29 @@ export const getQuestions = async (cursor, limit=15) => {
             _count: {
                 select: {
                     answers: true,
-                    votes: true,
                     bookmarks: true,
                 },
             },
+            votes: {
+                select: { type: true }
+            }
         },
     });
+    
+    const computedQuestions = questions.map(q => {
+        const netVotes = q.votes ? q.votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0) : 0;
+        delete q.votes;
+        return {
+            ...q,
+            _count: {
+                ...q._count,
+                votes: netVotes
+            }
+        };
+    });
+
     return {
-        questions,
+        questions: computedQuestions,
         hasMore: questions.length === limit,
     };
 };

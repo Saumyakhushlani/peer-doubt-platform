@@ -1,10 +1,29 @@
-import { createVote, getVotesByQuestion, getVotesByAnswer, getVotesCountByQuestion, getVotesCountByAnswer, getVotesByUser } from "../services/vote.service.js";
+import { createVote, deleteVote, getMyVotes, getVotesByQuestion, getVotesByAnswer, getVotesCountByQuestion, getVotesCountByAnswer, getVotesByUser } from "../services/vote.service.js";
 
 export const createVoteController = async (req, res) => {
     try {
         const { type, questionId, answerId } = req.body;
         const vote = await createVote({ type, questionId, answerId, authorId: req.userId });
         res.status(201).json({ vote });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const deleteVoteController = async (req, res) => {
+    try { 
+        const { questionId, answerId } = req.params;
+        const vote = await deleteVote({ userId: req.userId, questionId, answerId });
+        res.status(200).json({ vote });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
+
+export const getMyVotesController = async (req, res) => {
+    try {
+        const votes = await getMyVotes(req.userId);
+        res.status(200).json({ votes });
     } catch (error) {
         res.status(500).json({ error: error.message });
     }
