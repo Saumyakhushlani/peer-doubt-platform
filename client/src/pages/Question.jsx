@@ -28,16 +28,20 @@ function nameInitials(name) {
 export default function Question() {
   const navigate = useNavigate();
 
-  const [questions, setQuestions]     = useState([]);
-  const [error, setError]             = useState(null);
-  const [loading, setLoading]         = useState(true);
+  const [questions, setQuestions] = useState([]);
+  const [error, setError] = useState(null);
+  const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
-  const [hasMore, setHasMore]         = useState(true);
+  const [hasMore, setHasMore] = useState(true);
   const [selectedTags, setSelectedTags] = useState([]);
 
-  const [myVotes, setMyVotes]       = useState({});
+  const [myVotes, setMyVotes] = useState({});
   const [voteCounts, setVoteCounts] = useState({});
-  const [votingId, setVotingId]     = useState(null);
+  const [votingId, setVotingId] = useState(null);
+
+  const [myBookmarks, setMyBookmarks] = useState({});
+  const [bookmarkCounts, setBookmarkCounts] = useState({});
+  const [bookmarkingId, setBookmarkingId] = useState(null);
 
   // ── Fetch paginated questions ──────────────────────────────────────────────
   const fetchPage = useCallback(async (cursor) => {
@@ -60,7 +64,16 @@ export default function Question() {
 
       setVoteCounts((prev) => {
         const next = { ...prev };
-        batch.forEach((q) => { next[q.id] = q._count?.votes ?? 0; });
+        batch.forEach((q) => {
+          next[q.id] = q._count?.votes ?? 0;
+        });
+        return next;
+      });
+      setBookmarkCounts((prev) => {
+        const next = { ...prev };
+        batch.forEach((q) => {
+          next[q.id] = q._count?.bookmarks ?? 0;
+        });
         return next;
       });
     } catch (err) {
@@ -92,6 +105,31 @@ export default function Question() {
       }
     }
     fetchMyVotes();
+  }, []);
+
+  useEffect(() => {
+    async function loadBookmarks() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const { data: me } = await axios.get(`${BASE_URL}/api/user/me`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const uid = me.userId;
+        if (!uid) return;
+        const { data } = await axios.get(`${BASE_URL}/api/bookmark/user/${uid}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const map = {};
+        (data.bookmarks ?? []).forEach((b) => {
+          if (b.questionId) map[b.questionId] = true;
+        });
+        setMyBookmarks(map);
+      } catch {
+        
+      }
+    }
+    loadBookmarks();
   }, []);
 
   // ── Handle upvote toggle ──────────────────────────────────────────────
@@ -140,6 +178,67 @@ export default function Question() {
     setVotingId(null);
   }
 
+  async function handleBookmark(e, questionId, currentCount) {
+    e.stopPropagation();
+    if (bookmarkingId === questionId) return;
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+
+    const isOn = !!myBookmarks[questionId];
+    setBookmarkingId(questionId);
+
+    if (isOn) {
+      setMyBookmarks((prev) => {
+        const n = { ...prev };
+        delete n[questionId];
+        return n;
+      });
+      setBookmarkCounts((prev) => ({
+        ...prev,
+        [questionId]: Math.max(0, (prev[questionId] ?? currentCount) - 1),
+      }));
+      try {
+        await axios.delete(`${BASE_URL}/api/bookmark/question/${questionId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch {
+        setMyBookmarks((prev) => ({ ...prev, [questionId]: true }));
+        setBookmarkCounts((prev) => ({
+          ...prev,
+          [questionId]: (prev[questionId] ?? 0) + 1,
+        }));
+      }
+    } else {
+      setMyBookmarks((prev) => ({ ...prev, [questionId]: true }));
+      setBookmarkCounts((prev) => ({
+        ...prev,
+        [questionId]: (prev[questionId] ?? currentCount) + 1,
+      }));
+      try {
+        await axios.post(
+          `${BASE_URL}/api/bookmark`,
+          { questionId },
+          { headers: { Authorization: `Bearer ${token}` } }
+        );
+      } catch {
+        setMyBookmarks((prev) => {
+          const n = { ...prev };
+          delete n[questionId];
+          return n;
+        });
+        setBookmarkCounts((prev) => ({
+          ...prev,
+          [questionId]: currentCount,
+        }));
+      }
+    }
+
+    setBookmarkingId(null);
+  }
+
   // ── Helpers ────────────────────────────────────────────────────────────────
   function loadMore() {
     if (!hasMore || loadingMore || questions.length === 0) return;
@@ -175,9 +274,8 @@ export default function Question() {
   }
 
   const filteredQuestions = getFilteredQuestions();
-  const allUniqueTags     = getAllUniqueTags();
+  const allUniqueTags = getAllUniqueTags();
 
-  // ── Loading state ──────────────────────────────────────────────────────────
   if (loading && questions.length === 0) {
     return (
       <div className="min-h-screen bg-[#f0f7fc] px-6 py-16 text-center text-slate-600">
@@ -186,7 +284,6 @@ export default function Question() {
     );
   }
 
-  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <div className="min-h-screen bg-[#f0f7fc] px-6 pb-20 pt-10 font-sans text-slate-900">
       <div className="mx-auto flex max-w-6xl flex-col gap-6">
@@ -202,7 +299,6 @@ export default function Question() {
           </Link>
         </div>
 
-        {/* Tag Filter */}
         {allUniqueTags.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
             <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
@@ -214,11 +310,10 @@ export default function Question() {
                 <button
                   key={tag}
                   onClick={() => toggleTag(tag)}
-                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${
-                    isActive
+                  className={`rounded-full px-3 py-1 text-xs font-semibold transition-colors duration-150 ${isActive
                       ? "bg-[#1e9df1] text-white"
                       : "border border-slate-200 bg-white text-slate-500 hover:border-[#1e9df1] hover:text-[#1e9df1]"
-                  }`}
+                    }`}
                 >
                   #{tag}
                 </button>
@@ -235,24 +330,22 @@ export default function Question() {
           </div>
         )}
 
-        {/* Error banner */}
         {error && (
           <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
             {error}
           </div>
         )}
 
-        {/* Question list */}
         <ul className="flex flex-col gap-4">
           {filteredQuestions.map((question) => {
-            const author    = question.author;
-            const tagRows   = Array.isArray(question.tags) ? question.tags : [];
-            const asked     = formatAskedAt(question.createdAt);
-            const c         = question._count ?? {};
-            const nAnswers  = c.answers ?? 0;
-            const nBookmarks = c.bookmarks ?? 0;
-            const nVotes    = voteCounts[question.id] ?? c.votes ?? 0;
-            const voteType  = myVotes[question.id];
+            const author = question.author;
+            const tagRows = Array.isArray(question.tags) ? question.tags : [];
+            const asked = formatAskedAt(question.createdAt);
+            const c = question._count ?? {};
+            const nAnswers = c.answers ?? 0;
+            const nBookmarks = bookmarkCounts[question.id] ?? c.bookmarks ?? 0;
+            const nVotes = voteCounts[question.id] ?? c.votes ?? 0;
+            const voteType = myVotes[question.id];
 
             return (
               <li
@@ -262,7 +355,6 @@ export default function Question() {
               >
                 <div className="flex gap-3">
 
-                  {/* Avatar */}
                   <Link
                     to={`/profile/${question.authorId}`}
                     className="shrink-0"
@@ -275,7 +367,6 @@ export default function Question() {
 
                   <div className="min-w-0 flex-1">
 
-                    {/* Title */}
                     <h2 className="text-xl font-bold leading-snug text-[#0f1419]">
                       <Link
                         to={`/question/${question.id}`}
@@ -286,7 +377,6 @@ export default function Question() {
                       </Link>
                     </h2>
 
-                    {/* Meta */}
                     <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
                       <Link
                         to={`/profile/${question.authorId}`}
@@ -306,7 +396,6 @@ export default function Question() {
                       )}
                     </div>
 
-                    {/* Tags */}
                     {tagRows.length > 0 && (
                       <div className="relative mt-3 min-h-7 overflow-hidden">
                         <div className="flex flex-nowrap gap-2 overflow-hidden pr-8">
@@ -327,7 +416,6 @@ export default function Question() {
                       </div>
                     )}
 
-                    {/* Body preview */}
                     <div className="mt-3 line-clamp-4 text-sm text-slate-600" data-color-mode="light">
                       <MarkdownPreview
                         source={question.body ?? ""}
@@ -340,7 +428,6 @@ export default function Question() {
                       />
                     </div>
 
-                    {/* Stats row */}
                     <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
 
                       <span className="inline-flex items-center gap-1.5">
@@ -348,26 +435,37 @@ export default function Question() {
                         {nAnswers} {nAnswers === 1 ? "answer" : "answers"}
                       </span>
 
-                      {/* Upvote button */}
                       <button
                         onClick={(e) => handleVote(e, question.id)}
                         disabled={votingId === question.id}
-                        className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${
-                          voteType === "UP" ? "text-[#1e9df1]" : "text-slate-500 hover:text-[#1e9df1]"
-                        }`}
+                        className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${voteType === "UP" ? "text-[#1e9df1]" : "text-slate-500 hover:text-[#1e9df1]"
+                          }`}
                       >
                         <ThumbsUp
-                          className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
-                            voteType === "UP" ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
-                          }`}
+                          className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${voteType === "UP" ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                            }`}
                         />
                         {nVotes} {nVotes === 1 ? "vote" : "votes"}
                       </button>
 
-                      <span className="inline-flex items-center gap-1.5">
-                        <Bookmark className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-                        {nBookmarks} {nBookmarks === 1 ? "bookmark" : "bookmarks"}
-                      </span>
+                      <button
+                        type="button"
+                        onClick={(e) =>
+                          handleBookmark(e, question.id, c.bookmarks ?? 0)
+                        }
+                        disabled={bookmarkingId === question.id}
+                        className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${
+                          myBookmarks[question.id]
+                            ? "text-[#1e9df1]"
+                            : "text-slate-500 hover:text-[#1e9df1]"
+                        }`}
+                      >
+                        <span className="inline-flex items-center gap-1.5">
+                          <Bookmark className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${myBookmarks[question.id] ? "fill-[#1e9df1] text-[#1e9df1]" : "text-slate-400"
+                            }`} />
+                          {nBookmarks} {nBookmarks === 1 ? "bookmark" : "bookmarks"}
+                        </span>
+                      </button>
 
                     </div>
                   </div>
