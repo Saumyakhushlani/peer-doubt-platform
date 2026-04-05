@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MarkdownPreview from "@uiw/react-markdown-preview";
-import { Bookmark, MessageSquare, ThumbsUp, ThumbsDown } from "lucide-react";
+import MDEditor from "@uiw/react-md-editor";
+import "@uiw/react-md-editor/markdown-editor.css";
+import { Bookmark, Loader2, MessageSquare, ThumbsDown, ThumbsUp, X } from "lucide-react";
 import axios from "axios";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
@@ -43,6 +45,13 @@ export default function Question() {
   const [bookmarkCounts, setBookmarkCounts] = useState({});
   const [bookmarkingId, setBookmarkingId] = useState(null);
 
+  const [answerCounts, setAnswerCounts] = useState({});
+  const [answerModalId, setAnswerModalId] = useState(null);
+  const [answerModalTitle, setAnswerModalTitle] = useState("");
+  const [answerDraft, setAnswerDraft] = useState("");
+  const [answerSaving, setAnswerSaving] = useState(false);
+  const [answerError, setAnswerError] = useState(null);
+
   const fetchPage = useCallback(async (cursor) => {
     const append = cursor != null;
     try {
@@ -72,6 +81,13 @@ export default function Question() {
         const next = { ...prev };
         batch.forEach((q) => {
           next[q.id] = q._count?.bookmarks ?? 0;
+        });
+        return next;
+      });
+      setAnswerCounts((prev) => {
+        const next = { ...prev };
+        batch.forEach((q) => {
+          next[q.id] = q._count?.answers ?? 0;
         });
         return next;
       });
@@ -178,6 +194,66 @@ export default function Question() {
     }
 
     setVotingId(null);
+  }
+
+  function openAnswerModal(e, question) {
+    e.stopPropagation();
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    setAnswerModalId(question.id);
+    setAnswerModalTitle(question.title ?? "");
+    setAnswerDraft("");
+    setAnswerError(null);
+  }
+
+  function dismissAnswerModal() {
+    setAnswerModalId(null);
+    setAnswerModalTitle("");
+    setAnswerDraft("");
+    setAnswerError(null);
+  }
+
+  function closeAnswerModal() {
+    if (answerSaving) return;
+    dismissAnswerModal();
+  }
+
+  async function submitAnswer() {
+    if (!answerModalId || answerSaving) return;
+    const body = String(answerDraft ?? "").trim();
+    if (!body) {
+      setAnswerError("Write your answer in the editor.");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      navigate("/login");
+      return;
+    }
+    setAnswerSaving(true);
+    setAnswerError(null);
+    const qid = answerModalId;
+    try {
+      await axios.post(
+        `${BASE_URL}/api/answer`,
+        { questionId: qid, body: answerDraft },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      setAnswerCounts((prev) => ({
+        ...prev,
+        [qid]: (prev[qid] ?? 0) + 1,
+      }));
+      dismissAnswerModal();
+    } catch (err) {
+      setAnswerError(
+        err.response?.data?.error ?? err.message ?? "Could not post answer"
+      );
+    } finally {
+      setAnswerSaving(false);
+    }
   }
 
   async function handleBookmark(e, questionId, currentCount) {
@@ -341,7 +417,7 @@ export default function Question() {
             const tagRows = Array.isArray(question.tags) ? question.tags : [];
             const asked = formatAskedAt(question.createdAt);
             const c = question._count ?? {};
-            const nAnswers = c.answers ?? 0;
+            const nAnswers = answerCounts[question.id] ?? c.answers ?? 0;
             const nBookmarks = bookmarkCounts[question.id] ?? c.bookmarks ?? 0;
             const nVotes = voteCounts[question.id] ?? c.votes ?? 0;
             const voteType = myVotes[question.id];
@@ -427,12 +503,20 @@ export default function Question() {
                       />
                     </div>
 
-                    <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
+                    <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
 
                       <span className="inline-flex items-center gap-1.5">
                         <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" />
                         {nAnswers} {nAnswers === 1 ? "answer" : "answers"}
                       </span>
+
+                      <button
+                        type="button"
+                        onClick={(e) => openAnswerModal(e, question)}
+                        className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[#1e9df1] hover:bg-sky-50"
+                      >
+                        Add answer
+                      </button>
 
                       <div className="inline-flex items-center gap-1.5">
                         <button
@@ -511,6 +595,89 @@ export default function Question() {
           </button>
         )}
 
+        {answerModalId && (
+          <div
+            className="fixed inset-0 z-[100] flex items-center justify-center bg-black/45 p-4"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="answer-modal-title"
+            onClick={closeAnswerModal}
+          >
+            <div
+              className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex shrink-0 items-start justify-between gap-3 border-b border-slate-200 px-5 py-4">
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    Your answer
+                  </p>
+                  <h3
+                    id="answer-modal-title"
+                    className="mt-1 line-clamp-2 text-base font-bold text-[#0f1419]"
+                  >
+                    {answerModalTitle}
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={closeAnswerModal}
+                  disabled={answerSaving}
+                  className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 disabled:opacity-50"
+                  aria-label="Close"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+
+              <div className="min-h-0 flex-1 overflow-y-auto p-5">
+                {answerError && (
+                  <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {answerError}
+                  </div>
+                )}
+                <div
+                  data-color-mode="light"
+                  className="overflow-hidden rounded-xl border-2 border-slate-300"
+                >
+                  <MDEditor
+                    value={answerDraft}
+                    onChange={(v) => setAnswerDraft(v ?? "")}
+                    height={300}
+                    preview="edit"
+                    visibleDragbar={false}
+                  />
+                </div>
+              </div>
+
+              <div className="flex shrink-0 justify-end gap-2 border-t border-slate-200 px-5 py-4">
+                <button
+                  type="button"
+                  onClick={closeAnswerModal}
+                  disabled={answerSaving}
+                  className="rounded-xl border border-slate-300 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={submitAnswer}
+                  disabled={answerSaving}
+                  className="inline-flex items-center gap-2 rounded-xl bg-[#1e9df1] px-4 py-2 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
+                >
+                  {answerSaving ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Posting…
+                    </>
+                  ) : (
+                    "Post answer"
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
