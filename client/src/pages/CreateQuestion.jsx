@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import axios from "axios";
 import MDEditor from "@uiw/react-md-editor";
 import "@uiw/react-md-editor/markdown-editor.css";
 import { ArrowLeft, HelpCircle, Loader2, Send } from "lucide-react";
+import { api, authHeader } from "../lib/api/client.js";
 
 const BASE_URL = import.meta.env.VITE_API_URL ?? "http://localhost:3000";
 
@@ -44,15 +44,10 @@ export default function CreateQuestion() {
     setIsLoading(true);
     try {
       const tags = parseTags(tagInput);
-      const { data } = await axios.post(
-        `${BASE_URL}/api/question`,
+      const { data } = await api.post(
+        "/question",
         { title: trimmedTitle, body, tags },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
-          },
-        }
+        { headers: { "Content-Type": "application/json", ...authHeader() } }
       );
       const q = data?.question;
       if (q?.authorId) {

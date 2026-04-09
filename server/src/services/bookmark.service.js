@@ -25,7 +25,17 @@ export const getBookmarksByUser = async (userId) => {
         include: {
             question: {
                 include: {
-                    author: true,
+                    author: {
+                        select: {
+                            id: true,
+                            name: true,
+                            image: true,
+                            department: true,
+                            year: true,
+                            scholar_no: true,
+                            createdAt: true,
+                        },
+                    },
                     tags: {
                         include: {
                             tag: true,
