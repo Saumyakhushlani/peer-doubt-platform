@@ -1,4 +1,4 @@
-# 🎓 Peer Doubt Solving Platform
+# 🎓 Peer Doubt Solving Platform (Minor Project)
 
 A **StackOverflow-style Q&A platform for MANIT Bhopal students** that enables collaborative peer learning by allowing students to ask academic doubts, receive answers, and build a searchable knowledge base.
 
