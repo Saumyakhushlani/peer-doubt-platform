@@ -1,18 +1,53 @@
+import { useEffect, useState } from "react";
 import MDEditor from "@uiw/react-md-editor";
 import "@uiw/react-md-editor/markdown-editor.css";
 import { Loader2, X } from "lucide-react";
+import { createAnswer } from "../../lib/api/answer.js";
 
 export default function AnswerModal({
   open,
   title,
-  value,
-  setValue,
-  saving,
-  error,
+  questionId,
   onClose,
-  onSubmit,
+  onSubmitted,
 }) {
   if (!open) return null;
+
+  const [value, setValue] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!open) return;
+    setValue("");
+    setError(null);
+  }, [open, questionId]);
+
+  async function handleSubmit() {
+    if (!questionId || saving) return;
+    const body = String(value ?? "").trim();
+    if (!body) {
+      setError("Write your answer in the editor.");
+      return;
+    }
+    const token = localStorage.getItem("token");
+    if (!token) {
+      setError("Please sign in to post an answer.");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await createAnswer({ questionId, body: value });
+      await onSubmitted?.();
+      onClose?.();
+    } catch (err) {
+      setError(err.response?.data?.error ?? err.message ?? "Could not post answer");
+    } finally {
+      setSaving(false);
+    }
+  }
 
   return (
     <div
@@ -20,7 +55,10 @@ export default function AnswerModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="answer-modal-title"
-      onClick={onClose}
+      onClick={() => {
+        if (saving) return;
+        onClose?.();
+      }}
     >
       <div
         className="flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl"
@@ -80,7 +118,7 @@ export default function AnswerModal({
           </button>
           <button
             type="button"
-            onClick={onSubmit}
+            onClick={handleSubmit}
             disabled={saving}
             className="inline-flex items-center gap-2 rounded-xl bg-[#1e9df1] px-4 py-2 text-sm font-bold text-white hover:opacity-95 disabled:opacity-60"
           >

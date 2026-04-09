@@ -7,7 +7,6 @@ import { getQuestions } from "../lib/api/question.js";
 import { getMyVotes, deleteVoteForQuestion, voteQuestion } from "../lib/api/vote.js";
 import { getMe } from "../lib/api/user.js";
 import { getBookmarksByUser, addBookmark, removeBookmark } from "../lib/api/bookmark.js";
-import { createAnswer } from "../lib/api/answer.js";
 
 const PAGE_SIZE = 15;
 
@@ -32,9 +31,6 @@ export default function Question() {
   const [answerCounts, setAnswerCounts] = useState({});
   const [answerModalId, setAnswerModalId] = useState(null);
   const [answerModalTitle, setAnswerModalTitle] = useState("");
-  const [answerDraft, setAnswerDraft] = useState("");
-  const [answerSaving, setAnswerSaving] = useState(false);
-  const [answerError, setAnswerError] = useState(null);
 
   const fetchPage = useCallback(async (cursor) => {
     const append = cursor != null;
@@ -174,51 +170,11 @@ export default function Question() {
     }
     setAnswerModalId(question.id);
     setAnswerModalTitle(question.title ?? "");
-    setAnswerDraft("");
-    setAnswerError(null);
-  }
-
-  function dismissAnswerModal() {
-    setAnswerModalId(null);
-    setAnswerModalTitle("");
-    setAnswerDraft("");
-    setAnswerError(null);
   }
 
   function closeAnswerModal() {
-    if (answerSaving) return;
-    dismissAnswerModal();
-  }
-
-  async function submitAnswer() {
-    if (!answerModalId || answerSaving) return;
-    const body = String(answerDraft ?? "").trim();
-    if (!body) {
-      setAnswerError("Write your answer in the editor.");
-      return;
-    }
-    const token = localStorage.getItem("token");
-    if (!token) {
-      navigate("/login");
-      return;
-    }
-    setAnswerSaving(true);
-    setAnswerError(null);
-    const qid = answerModalId;
-    try {
-      await createAnswer({ questionId: qid, body: answerDraft });
-      setAnswerCounts((prev) => ({
-        ...prev,
-        [qid]: (prev[qid] ?? 0) + 1,
-      }));
-      dismissAnswerModal();
-    } catch (err) {
-      setAnswerError(
-        err.response?.data?.error ?? err.message ?? "Could not post answer"
-      );
-    } finally {
-      setAnswerSaving(false);
-    }
+    setAnswerModalId(null);
+    setAnswerModalTitle("");
   }
 
   async function handleBookmark(e, questionId, currentCount) {
@@ -386,12 +342,16 @@ export default function Question() {
         <AnswerModal
           open={!!answerModalId}
           title={answerModalTitle}
-          value={answerDraft}
-          setValue={setAnswerDraft}
-          saving={answerSaving}
-          error={answerError}
+          questionId={answerModalId}
           onClose={closeAnswerModal}
-          onSubmit={submitAnswer}
+          onSubmitted={() => {
+            const qid = answerModalId;
+            if (!qid) return;
+            setAnswerCounts((prev) => ({
+              ...prev,
+              [qid]: (prev[qid] ?? 0) + 1,
+            }));
+          }}
         />
       </div>
     </div>

@@ -1,15 +1,15 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import MarkdownPreview from "@uiw/react-markdown-preview";
 import "@uiw/react-markdown-preview/markdown.css";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import AnswerModal from "../components/questions/AnswerModal.jsx";
 import QuestionCard from "../components/questions/QuestionCard.jsx";
+import AnswerCard from "../components/questions/AnswerCard.jsx";
 import { getQuestionById } from "../lib/api/question.js";
-import { getMyVotes, deleteVoteForQuestion, voteQuestion } from "../lib/api/vote.js";
+import { getMyVotes, deleteVoteForAnswer, deleteVoteForQuestion, voteAnswer, voteQuestion } from "../lib/api/vote.js";
 import { getMe } from "../lib/api/user.js";
 import { getBookmarksByUser, addBookmark, removeBookmark } from "../lib/api/bookmark.js";
-import { createAnswer } from "../lib/api/answer.js";
 
 function formatAskedAt(iso) {
     if (!iso) return "";
@@ -59,9 +59,23 @@ export default function QuestionWithId() {
     const [bookmarkCount, setBookmarkCount] = useState(0);
 
     const [answerModalOpen, setAnswerModalOpen] = useState(false);
-    const [answerDraft, setAnswerDraft] = useState("");
-    const [answerSaving, setAnswerSaving] = useState(false);
-    const [answerError, setAnswerError] = useState(null);
+
+    const [myAnswerVotes, setMyAnswerVotes] = useState({});
+    const [answerVoteCounts, setAnswerVoteCounts] = useState({});
+    const [votingAnswerId, setVotingAnswerId] = useState(null);
+
+    const answers = useMemo(() => {
+        if (!question) return [];
+        return Array.isArray(question.answers) ? question.answers.filter(isAnswerRow) : [];
+    }, [question]);
+
+    useEffect(() => {
+        const next = {};
+        answers.forEach((a) => {
+            next[a.id] = a?._count?.votes ?? 0;
+        });
+        setAnswerVoteCounts(next);
+    }, [answers]);
 
     useEffect(() => {
         if (!id) {
@@ -103,8 +117,14 @@ export default function QuestionWithId() {
             if (!token || !id) return;
             try {
                 const data = await getMyVotes();
-                const v = data.votes?.find(v => v.questionId === id);
+                const v = data.votes?.find((v) => v.questionId === id);
                 if (v) setMyVote(v.type);
+
+                const answerMap = {};
+                (data.votes ?? []).forEach((vv) => {
+                    if (vv.answerId) answerMap[vv.answerId] = vv.type;
+                });
+                setMyAnswerVotes(answerMap);
             } catch {}
         }
         fetchMyVote();
@@ -171,42 +191,11 @@ export default function QuestionWithId() {
             navigate("/login");
             return;
         }
-        setAnswerDraft("");
-        setAnswerError(null);
         setAnswerModalOpen(true);
     }
 
     function closeAnswer() {
-        if (answerSaving) return;
         setAnswerModalOpen(false);
-        setAnswerDraft("");
-        setAnswerError(null);
-    }
-
-    async function submitAnswer() {
-        if (!id || answerSaving) return;
-        const body = String(answerDraft ?? "").trim();
-        if (!body) {
-            setAnswerError("Write your answer in the editor.");
-            return;
-        }
-        const token = localStorage.getItem("token");
-        if (!token) { navigate("/login"); return; }
-
-        setAnswerSaving(true);
-        setAnswerError(null);
-        try {
-            await createAnswer({ questionId: id, body: answerDraft });
-            // refresh question so answers list updates
-            const data = await getQuestionById(id);
-            setQuestion(data.question ?? null);
-            setAnswerModalOpen(false);
-            setAnswerDraft("");
-        } catch (err) {
-            setAnswerError(err.response?.data?.error ?? err.message ?? "Could not post answer");
-        } finally {
-            setAnswerSaving(false);
-        }
     }
 
     async function toggleBookmark() {
@@ -275,12 +264,70 @@ export default function QuestionWithId() {
         );
     }
 
-    const author = question.author;
     const count = question._count ?? {};
-    const answers = Array.isArray(question.answers)
-        ? question.answers.filter(isAnswerRow)
-        : [];
     const asked = formatAskedAt(question.createdAt);
+
+    async function handleAnswerVote(e, answerId, type) {
+        e.stopPropagation();
+        if (votingAnswerId === answerId) return;
+        const token = localStorage.getItem("token");
+        if (!token) { navigate("/login"); return; }
+
+        setVotingAnswerId(answerId);
+        const currentVote = myAnswerVotes[answerId];
+
+        if (currentVote === type) {
+            setMyAnswerVotes((prev) => {
+                const n = { ...prev };
+                delete n[answerId];
+                return n;
+            });
+            setAnswerVoteCounts((prev) => ({
+                ...prev,
+                [answerId]: (prev[answerId] ?? 0) - (type === "UP" ? 1 : -1),
+            }));
+            try {
+                await deleteVoteForAnswer(answerId);
+            } catch {
+                setMyAnswerVotes((prev) => ({ ...prev, [answerId]: type }));
+                setAnswerVoteCounts((prev) => ({
+                    ...prev,
+                    [answerId]: (prev[answerId] ?? 0) + (type === "UP" ? 1 : -1),
+                }));
+            }
+        } else {
+            let diff = 0;
+            if (currentVote === "UP" && type === "DOWN") diff = -2;
+            else if (currentVote === "DOWN" && type === "UP") diff = 2;
+            else if (!currentVote && type === "UP") diff = 1;
+            else if (!currentVote && type === "DOWN") diff = -1;
+
+            setMyAnswerVotes((prev) => ({ ...prev, [answerId]: type }));
+            setAnswerVoteCounts((prev) => ({
+                ...prev,
+                [answerId]: (prev[answerId] ?? 0) + diff,
+            }));
+            try {
+                await voteAnswer({ answerId, type });
+            } catch {
+                if (currentVote) {
+                    setMyAnswerVotes((prev) => ({ ...prev, [answerId]: currentVote }));
+                } else {
+                    setMyAnswerVotes((prev) => {
+                        const n = { ...prev };
+                        delete n[answerId];
+                        return n;
+                    });
+                }
+                setAnswerVoteCounts((prev) => ({
+                    ...prev,
+                    [answerId]: (prev[answerId] ?? 0) - diff,
+                }));
+            }
+        }
+
+        setVotingAnswerId(null);
+    }
 
     return (
         <div className="min-h-screen bg-[#f0f7fc] px-6 pb-20 pt-8 font-sans text-slate-900">
@@ -323,48 +370,14 @@ export default function QuestionWithId() {
                     ) : (
                         <ul className="flex flex-col gap-4">
                             {answers.map((ans) => (
-                                <li
+                                <AnswerCard
                                     key={ans.id}
-                                    className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm"
-                                >
-                                    <div className="flex gap-3">
-                                        <Link
-                                            to={`/profile/${ans.authorId}`}
-                                            className="shrink-0"
-                                            aria-label={
-                                                ans.author?.name
-                                                    ? `Profile: ${ans.author.name}`
-                                                    : "Answer author"
-                                            }
-                                        >
-                                            <div className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-xs font-black text-sky-900">
-                                                {nameInitials(ans.author?.name)}
-                                            </div>
-                                        </Link>
-                                        <div className="min-w-0 flex-1">
-                                            <div className="flex flex-wrap items-baseline gap-2 text-sm">
-                                                <Link
-                                                    to={`/profile/${ans.authorId}`}
-                                                    className="font-bold text-[#1e9df1] hover:underline"
-                                                >
-                                                    {ans.author?.name ?? "Unknown"}
-                                                </Link>
-                                                <span className="text-xs text-slate-400">
-                                                    {formatAskedAt(ans.createdAt)}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className="mt-3 text-sm text-slate-800"
-                                                data-color-mode="light"
-                                            >
-                                                <MarkdownPreview
-                                                    source={ans.body ?? ""}
-                                                    style={{ padding: 0 }}
-                                                />
-                                            </div>
-                                        </div>
-                                    </div>
-                                </li>
+                                    answer={ans}
+                                    voteType={myAnswerVotes[ans.id]}
+                                    votesCount={answerVoteCounts[ans.id] ?? ans?._count?.votes ?? 0}
+                                    voting={votingAnswerId === ans.id}
+                                    onVote={(e, type) => handleAnswerVote(e, ans.id, type)}
+                                />
                             ))}
                         </ul>
                     )}
@@ -374,12 +387,13 @@ export default function QuestionWithId() {
             <AnswerModal
                 open={answerModalOpen}
                 title={question?.title ?? ""}
-                value={answerDraft}
-                setValue={setAnswerDraft}
-                saving={answerSaving}
-                error={answerError}
+                questionId={id}
                 onClose={closeAnswer}
-                onSubmit={submitAnswer}
+                onSubmitted={async () => {
+                    if (!id) return;
+                    const data = await getQuestionById(id);
+                    setQuestion(data.question ?? null);
+                }}
             />
         </div>
     );

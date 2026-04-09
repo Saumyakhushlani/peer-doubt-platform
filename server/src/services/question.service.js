@@ -130,6 +130,11 @@ export const getQuestionById = async (id) => {
                             createdAt: true,
                         },
                     },
+                    _count: {
+                        select: {
+                            votes: true,
+                        },
+                    },
                 },
             },
             _count: {
