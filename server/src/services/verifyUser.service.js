@@ -33,19 +33,20 @@ export const verifyUser = async ({ scholar, password }) => {
   });
 
   if (!existingUser) {
-    // MANIT ERP often serves a chain Node cannot verify; skip verify only for this call.
-    const skipTlsVerify =
-      process.env.NODE_ENV !== "production" ||
-      process.env.ERP_TLS_SKIP_VERIFY === "1";
 
-    const httpsAgent = skipTlsVerify
-      ? new https.Agent({ rejectUnauthorized: false })
-      : undefined;
+    const agent = new https.Agent({
+      rejectUnauthorized: false, // Disable SSL verification
+    });
 
     const { data } = await axios.post(
       "https://erpapi.manit.ac.in/api/login",
       { username: scholar, password },
-      { httpsAgent }
+      {
+        httpsAgent: agent,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      }
     );
 
     const student = data?.userInfo?.studentInfo?.[0];
