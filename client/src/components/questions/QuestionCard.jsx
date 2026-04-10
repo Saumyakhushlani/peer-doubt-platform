@@ -1,5 +1,5 @@
 import MarkdownPreview from "@uiw/react-markdown-preview";
-import { Bookmark, MessageSquare, ThumbsDown, ThumbsUp } from "lucide-react";
+import { Bookmark, MessageSquare, ThumbsDown, ThumbsUp, Plus } from "lucide-react";
 import { Link } from "react-router-dom";
 import { formatTagLabel } from "../../lib/formatTag.js";
 
@@ -51,97 +51,75 @@ export default function QuestionCard({
   return (
     <li
       onClick={onClick}
-      className="cursor-pointer rounded-2xl border border-b-2 border-slate-200 bg-white p-5 shadow-sm transition-shadow duration-150 hover:shadow-md"
+      className="group cursor-pointer border-b-2 border-slate-900 bg-white p-6 transition-all hover:bg-slate-50"
     >
-      <div className="flex gap-3">
+      <div className="flex items-start gap-4">
         <Link
           to={`/profile/${question.authorId}`}
           className="shrink-0"
           onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-xs font-black tracking-tight text-sky-900">
+          <div className="flex h-12 w-12 items-center justify-center bg-blue-600 text-sm font-black text-white rounded-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
             {nameInitials(author?.name)}
           </div>
         </Link>
 
         <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-bold leading-snug text-[#0f1419]">
+          <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <Link
+              to={`/profile/${question.authorId}`}
+              className="text-blue-600 hover:text-blue-700"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {author?.name ?? "Unknown"}
+            </Link>
+            <span>•</span>
+            <span>{asked}</span>
+            {author?.department && (
+              <>
+                <span>•</span>
+                <span className="truncate max-w-[100px]">{author.department}</span>
+              </>
+            )}
+          </div>
+
+          <h2 className="mt-1 text-xl font-black leading-tight text-slate-900 md:text-2xl">
             <Link
               to={`/question/${question.id}`}
-              className="hover:text-[#1e9df1] hover:underline"
+              className="hover:text-blue-600 transition-colors"
               onClick={(e) => e.stopPropagation()}
             >
               {question.title}
             </Link>
           </h2>
 
-          <div className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-slate-500">
-            <Link
-              to={`/profile/${question.authorId}`}
-              className="font-semibold text-[#1e9df1] hover:underline"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {author?.name ?? "Unknown"}
-            </Link>
-            {asked && (
-              <>
-                <span className="text-slate-300">·</span>
-                <span>{asked}</span>
-              </>
-            )}
-            {author?.department && (
-              <>
-                <span className="text-slate-300">·</span>
-                <span className="truncate">{author.department.trim()}</span>
-              </>
-            )}
-            {author?.year != null && (
-              <>
-                <span className="text-slate-300">·</span>
-                <span>Year {author.year}</span>
-              </>
-            )}
-          </div>
-
           {tagRows.length > 0 && (
-            <div className="relative mt-3 min-h-7 overflow-hidden">
-              <div className="flex flex-nowrap gap-2 overflow-hidden pr-8">
-                {tagRows.map((t) => {
-                  const name =
-                    typeof t?.tag?.name === "string"
-                      ? t.tag.name.trim()
-                      : typeof t?.name === "string"
-                        ? t.name.trim()
-                        : "";
-                  if (!name) return null;
-                  return (
-                    <span
-                      key={t.tagId ?? t.tag?.id ?? t.id ?? `${question.id}-${name}`}
-                      className="shrink-0 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-900"
-                    >
-                      {formatTagLabel(name)}
-                    </span>
-                  );
-                })}
-              </div>
-              <div className="pointer-events-none absolute inset-y-0 right-0 w-12 bg-gradient-to-l from-white to-transparent" />
+            <div className="mt-3 flex flex-wrap gap-2">
+              {tagRows.map((t) => {
+                const name = t?.tag?.name || t?.name || "";
+                if (!name) return null;
+                return (
+                  <span
+                    key={t.tagId || name}
+                    className="border border-slate-900 bg-white px-2 py-0.5 text-[10px] font-bold uppercase tracking-tight text-slate-900"
+                  >
+                    {formatTagLabel(name)}
+                  </span>
+                );
+              })}
             </div>
           )}
 
           {showBody && (
             <div
-              className={`mt-3 text-sm text-slate-600 ${clampBody ? "line-clamp-4" : ""}`}
+              className={`mt-4 text-sm leading-relaxed text-slate-600 ${clampBody ? "line-clamp-3" : ""}`}
               data-color-mode="light"
             >
               <MarkdownPreview
                 source={question.body ?? ""}
-                style={{ padding: 0 }}
+                style={{ padding: 0, backgroundColor: 'transparent', fontSize: 'inherit' }}
                 rehypeRewrite={(node, parent) => {
-                  if (
-                    node.tagName === "a" &&
-                    parent &&
-                    /^h(1|2|3|4|5|6)/.test(parent.tagName)
-                  ) {
+                  if (node.tagName === "a" && parent && /^h[1-6]/.test(parent.tagName)) {
                     parent.children = parent.children.slice(1);
                   }
                 }}
@@ -149,98 +127,58 @@ export default function QuestionCard({
             </div>
           )}
 
-          <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-slate-100 pt-3 text-xs font-semibold text-slate-500">
-            <span className="inline-flex items-center gap-1.5">
-              <MessageSquare className="h-3.5 w-3.5 shrink-0 text-slate-400" />
-              {answersCount} {answersCount === 1 ? "answer" : "answers"}
-            </span>
+          <div className="mt-6 flex flex-wrap items-center gap-4">
+            <div className="flex items-center border-2 border-slate-900 rounded-sm overflow-hidden bg-white">
+              <button
+                type="button"
+                onClick={(e) => onVote?.(e, "UP")}
+                disabled={voting}
+                className={`flex h-8 w-8 items-center justify-center transition-colors border-r border-slate-900 ${
+                  voteType === "UP" ? "bg-blue-600 text-white" : "hover:bg-slate-100"
+                }`}
+              >
+                <ThumbsUp size={14} strokeWidth={3} fill={voteType === "UP" ? "currentColor" : "none"} />
+              </button>
+              <span className="px-3 text-xs font-black tracking-tighter">
+                {votesCount}
+              </span>
+              <button
+                type="button"
+                onClick={(e) => onVote?.(e, "DOWN")}
+                disabled={voting}
+                className={`flex h-8 w-8 items-center justify-center transition-colors border-l border-slate-900 ${
+                  voteType === "DOWN" ? "bg-red-500 text-white" : "hover:bg-slate-100"
+                }`}
+              >
+                <ThumbsDown size={14} strokeWidth={3} fill={voteType === "DOWN" ? "currentColor" : "none"} />
+              </button>
+            </div>
 
-            {showAddAnswer && onAddAnswer && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black uppercase text-slate-500">
+              <MessageSquare size={14} strokeWidth={3} />
+              {answersCount} {answersCount === 1 ? "Solution" : "Solutions"}
+            </div>
+
+            <button
+              type="button"
+              onClick={onBookmark}
+              disabled={bookmarking}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-black uppercase transition-colors rounded-sm ${
+                isBookmarked ? "bg-blue-50 text-blue-600" : "text-slate-500 hover:bg-slate-100"
+              }`}
+            >
+              <Bookmark size={14} strokeWidth={3} fill={isBookmarked ? "currentColor" : "none"} />
+              {bookmarksCount}
+            </button>
+
+            {showAddAnswer && (
               <button
                 type="button"
                 onClick={onAddAnswer}
-                className="rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wide text-[#1e9df1] hover:bg-sky-50"
+                className="ml-auto flex items-center gap-1.5 bg-slate-950 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-blue-600 transition-colors rounded-sm shadow-sm"
               >
-                Add answer
-              </button>
-            )}
-
-            {showVoting && (
-              <div className="inline-flex items-center gap-1.5">
-                <button
-                  type="button"
-                  onClick={(e) => onVote?.(e, "UP")}
-                  disabled={voting}
-                  title="Upvote"
-                  className={`transition-colors duration-150 disabled:opacity-50 ${
-                    voteType === "UP"
-                      ? "text-[#1e9df1]"
-                      : "text-slate-500 hover:text-[#1e9df1]"
-                  }`}
-                >
-                  <ThumbsUp
-                    className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
-                      voteType === "UP"
-                        ? "fill-[#1e9df1] text-[#1e9df1]"
-                        : "text-slate-400"
-                    }`}
-                  />
-                </button>
-                <span
-                  className={`min-w-[1.5ch] text-center font-bold ${
-                    votesCount > 0
-                      ? "text-[#1e9df1]"
-                      : votesCount < 0
-                        ? "text-red-500"
-                        : "text-slate-500"
-                  }`}
-                >
-                  {votesCount}
-                </span>
-                <button
-                  type="button"
-                  onClick={(e) => onVote?.(e, "DOWN")}
-                  disabled={voting}
-                  title="Downvote"
-                  className={`transition-colors duration-150 disabled:opacity-50 ${
-                    voteType === "DOWN"
-                      ? "text-red-500"
-                      : "text-slate-500 hover:text-red-500"
-                  }`}
-                >
-                  <ThumbsDown
-                    className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
-                      voteType === "DOWN"
-                        ? "fill-red-500 text-red-500"
-                        : "text-slate-400"
-                    }`}
-                  />
-                </button>
-              </div>
-            )}
-
-            {showBookmark && (
-              <button
-                type="button"
-                onClick={onBookmark}
-                disabled={bookmarking}
-                className={`inline-flex items-center gap-1.5 transition-colors duration-150 disabled:opacity-50 ${
-                  isBookmarked
-                    ? "text-[#1e9df1]"
-                    : "text-slate-500 hover:text-[#1e9df1]"
-                }`}
-              >
-                <span className="inline-flex items-center gap-1.5">
-                  <Bookmark
-                    className={`h-3.5 w-3.5 shrink-0 transition-colors duration-150 ${
-                      isBookmarked
-                        ? "fill-[#1e9df1] text-[#1e9df1]"
-                        : "text-slate-400"
-                    }`}
-                  />
-                  {bookmarksCount}{" "}
-                  {bookmarksCount === 1 ? "bookmark" : "bookmarks"}
-                </span>
+                <Plus size={12} strokeWidth={4} />
+                Respond
               </button>
             )}
           </div>
@@ -249,4 +187,3 @@ export default function QuestionCard({
     </li>
   );
 }
-

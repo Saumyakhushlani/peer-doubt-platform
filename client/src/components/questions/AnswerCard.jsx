@@ -1,5 +1,5 @@
 import MarkdownPreview from "@uiw/react-markdown-preview";
-import { ThumbsDown, ThumbsUp } from "lucide-react";
+import { ThumbsDown, ThumbsUp, GraduationCap, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 
 function formatWhen(iso) {
@@ -36,91 +36,75 @@ export default function AnswerCard({
   const author = answer.author;
 
   return (
-    <li className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex gap-3">
+    <li className="border-b-2 border-slate-900 bg-white p-6 transition-all hover:bg-slate-50">
+      <div className="flex items-start gap-5">
         <Link
           to={`/profile/${answer.authorId}`}
           className="shrink-0"
-          aria-label={author?.name ? `Profile: ${author.name}` : "Answer author"}
+          onClick={(e) => e.stopPropagation()}
         >
-          <div className="flex h-10 w-10 items-center justify-center rounded-full border border-sky-200 bg-sky-100 text-xs font-black text-sky-900">
+          <div className="flex h-10 w-10 items-center justify-center bg-blue-600 text-xs font-black text-white rounded-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
             {nameInitials(author?.name)}
           </div>
         </Link>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div className="flex flex-wrap items-baseline gap-2 text-sm">
+        <div className="flex-1 min-w-0">
+          <div className="flex flex-col gap-1 mb-4">
+            <div className="flex items-center gap-2">
               <Link
                 to={`/profile/${answer.authorId}`}
-                className="font-bold text-[#1e9df1] hover:underline"
+                className="text-xs font-black uppercase tracking-tight text-blue-600 hover:text-slate-950 transition-colors"
+                onClick={(e) => e.stopPropagation()}
               >
-                {author?.name ?? "Unknown"}
+                {author?.name ?? "Anonymous Student"}
               </Link>
-              <span className="text-xs text-slate-400">
-                {formatWhen(answer.createdAt)}
-              </span>
+              {author?.year && (
+                <div className="flex items-center gap-1 bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold uppercase text-slate-600 rounded-sm">
+                  <GraduationCap size={10} />
+                  Year {author.year}
+                </div>
+              )}
             </div>
-
-            <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-              <button
-                type="button"
-                onClick={(e) => onVote?.(e, "UP")}
-                disabled={voting}
-                title="Upvote"
-                className={`transition-colors duration-150 disabled:opacity-50 ${
-                  voteType === "UP"
-                    ? "text-[#1e9df1]"
-                    : "text-slate-500 hover:text-[#1e9df1]"
-                }`}
-              >
-                <ThumbsUp
-                  className={`h-4 w-4 transition-colors duration-150 ${
-                    voteType === "UP"
-                      ? "fill-[#1e9df1] text-[#1e9df1]"
-                      : "text-slate-400"
-                  }`}
-                />
-              </button>
-              <span
-                className={`min-w-[1.5ch] text-center font-bold text-sm ${
-                  votesCount > 0
-                    ? "text-[#1e9df1]"
-                    : votesCount < 0
-                      ? "text-red-500"
-                      : "text-slate-500"
-                }`}
-              >
-                {votesCount}
-              </span>
-              <button
-                type="button"
-                onClick={(e) => onVote?.(e, "DOWN")}
-                disabled={voting}
-                title="Downvote"
-                className={`transition-colors duration-150 disabled:opacity-50 ${
-                  voteType === "DOWN"
-                    ? "text-red-500"
-                    : "text-slate-500 hover:text-red-500"
-                }`}
-              >
-                <ThumbsDown
-                  className={`h-4 w-4 transition-colors duration-150 ${
-                    voteType === "DOWN"
-                      ? "fill-red-500 text-red-500"
-                      : "text-slate-400"
-                  }`}
-                />
-              </button>
+            <div className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-widest text-slate-400">
+              <Clock size={10} strokeWidth={3} />
+              {formatWhen(answer.createdAt)}
             </div>
           </div>
 
-          <div className="mt-3 text-sm text-slate-800" data-color-mode="light">
-            <MarkdownPreview source={answer.body ?? ""} style={{ padding: 0 }} />
+          <div className="text-sm leading-relaxed text-slate-800 mb-6" data-color-mode="light">
+            <MarkdownPreview 
+              source={answer.body ?? ""} 
+              style={{ padding: 0, backgroundColor: 'transparent', fontSize: 'inherit' }} 
+            />
+          </div>
+
+          <div className="flex items-center w-fit border-2 border-slate-900 bg-white rounded-sm overflow-hidden shrink-0">
+            <button
+              type="button"
+              onClick={(e) => onVote?.(e, "UP")}
+              disabled={voting}
+              className={`flex h-8 w-9 items-center justify-center border-r border-slate-900 transition-colors ${
+                voteType === "UP" ? "bg-blue-600 text-white" : "hover:bg-slate-100"
+              }`}
+            >
+              <ThumbsUp size={14} strokeWidth={3} fill={voteType === "UP" ? "currentColor" : "none"} />
+            </button>
+            <span className="px-4 text-[11px] font-black tracking-tighter">
+              {votesCount}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => onVote?.(e, "DOWN")}
+              disabled={voting}
+              className={`flex h-8 w-9 items-center justify-center border-l border-slate-900 transition-colors ${
+                voteType === "DOWN" ? "bg-red-500 text-white" : "hover:bg-slate-100"
+              }`}
+            >
+              <ThumbsDown size={14} strokeWidth={3} fill={voteType === "DOWN" ? "currentColor" : "none"} />
+            </button>
           </div>
         </div>
       </div>
     </li>
   );
 }
-

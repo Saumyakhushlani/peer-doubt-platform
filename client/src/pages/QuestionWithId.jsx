@@ -1,8 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import MarkdownPreview from "@uiw/react-markdown-preview";
-import "@uiw/react-markdown-preview/markdown.css";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, MessageCircle, Info } from "lucide-react";
 import AnswerModal from "../components/questions/AnswerModal.jsx";
 import QuestionCard from "../components/questions/QuestionCard.jsx";
 import AnswerCard from "../components/questions/AnswerCard.jsx";
@@ -10,35 +8,6 @@ import { getQuestionById } from "../lib/api/question.js";
 import { getMyVotes, deleteVoteForAnswer, deleteVoteForQuestion, voteAnswer, voteQuestion } from "../lib/api/vote.js";
 import { getMe } from "../lib/api/user.js";
 import { getBookmarksByUser, addBookmark, removeBookmark } from "../lib/api/bookmark.js";
-
-function formatAskedAt(iso) {
-    if (!iso) return "";
-    try {
-        const d = new Date(iso);
-        return d.toLocaleDateString("en-IN", {
-            day: "numeric",
-            month: "short",
-            year: "numeric",
-            hour: "2-digit",
-            minute: "2-digit",
-        });
-    } catch {
-        return "";
-    }
-}
-
-function nameInitials(name) {
-    if (!name || typeof name !== "string") return "?";
-    const parts = name.trim().split(/\s+/).filter(Boolean);
-    if (parts.length === 0) return "?";
-    if (parts.length === 1) {
-        const w = parts[0];
-        return (w[0] ?? "?").toUpperCase();
-    }
-    const a = parts[0][0] ?? "";
-    const b = parts[parts.length - 1][0] ?? "";
-    return `${a}${b}`.toUpperCase();
-}
 
 function isAnswerRow(a) {
     return a && typeof a.body === "string" && a.author;
@@ -97,11 +66,7 @@ export default function QuestionWithId() {
                 setVoteCount(data.question?._count?.votes ?? 0);
                 setBookmarkCount(data.question?._count?.bookmarks ?? 0);
             } catch (err) {
-                setError(
-                    err.response?.data?.error ??
-                    err.message ??
-                    "Could not fetch question"
-                );
+                setError(err.response?.data?.error ?? err.message ?? "Could not fetch question");
                 setQuestion(null);
             } finally {
                 setLoading(false);
@@ -112,72 +77,51 @@ export default function QuestionWithId() {
     }, [id, navigate]);
 
     useEffect(() => {
-        async function fetchMyVote() {
+        async function fetchUserData() {
             const token = localStorage.getItem("token");
             if (!token || !id) return;
             try {
-                const data = await getMyVotes();
-                const v = data.votes?.find((v) => v.questionId === id);
+                const [voteData, meData] = await Promise.all([getMyVotes(), getMe()]);
+                
+                const v = voteData.votes?.find((v) => v.questionId === id);
                 if (v) setMyVote(v.type);
 
                 const answerMap = {};
-                (data.votes ?? []).forEach((vv) => {
+                (voteData.votes ?? []).forEach((vv) => {
                     if (vv.answerId) answerMap[vv.answerId] = vv.type;
                 });
                 setMyAnswerVotes(answerMap);
-            } catch {}
-        }
-        fetchMyVote();
-    }, [id]);
 
-    useEffect(() => {
-        async function fetchMyBookmark() {
-            const token = localStorage.getItem("token");
-            if (!token || !id) return;
-            try {
-                const me = await getMe();
-                const uid = me.userId;
-                if (!uid) return;
-                const data = await getBookmarksByUser(uid);
-                const map = {};
-                (data.bookmarks ?? []).forEach((b) => {
-                    if (b.questionId) map[b.questionId] = true;
-                });
-                setIsBookmarked(!!map[id]);
+                if (meData.userId) {
+                    const bookmarkData = await getBookmarksByUser(meData.userId);
+                    const map = {};
+                    (bookmarkData.bookmarks ?? []).forEach((b) => {
+                        if (b.questionId) map[b.questionId] = true;
+                    });
+                    setIsBookmarked(!!map[id]);
+                }
             } catch {}
         }
-        fetchMyBookmark();
+        fetchUserData();
     }, [id]);
 
     async function handleVote(type) {
         if (voting) return;
-        const token = localStorage.getItem("token");
-        if (!token) { navigate("/login"); return; }
-
+        if (!localStorage.getItem("token")) { navigate("/login"); return; }
         setVoting(true);
         const currentVote = myVote;
-
         if (currentVote === type) {
             setMyVote(null);
             setVoteCount(prev => prev - (type === "UP" ? 1 : -1));
-            try {
-                await deleteVoteForQuestion(id);
-            } catch {
+            try { await deleteVoteForQuestion(id); } catch {
                 setMyVote(currentVote);
                 setVoteCount(prev => prev + (type === "UP" ? 1 : -1));
             }
         } else {
-            let diff = 0;
-            if (currentVote === "UP" && type === "DOWN") diff = -2;
-            else if (currentVote === "DOWN" && type === "UP") diff = 2;
-            else if (!currentVote && type === "UP") diff = 1;
-            else if (!currentVote && type === "DOWN") diff = -1;
-
+            let diff = currentVote === (type === "UP" ? "DOWN" : "UP") ? (type === "UP" ? 2 : -2) : (type === "UP" ? 1 : -1);
             setMyVote(type);
             setVoteCount(prev => prev + diff);
-            try {
-                await voteQuestion({ type, questionId: id });
-            } catch {
+            try { await voteQuestion({ type, questionId: id }); } catch {
                 setMyVote(currentVote);
                 setVoteCount(prev => prev - diff);
             }
@@ -185,36 +129,16 @@ export default function QuestionWithId() {
         setVoting(false);
     }
 
-    function openAnswer() {
-        const token = localStorage.getItem("token");
-        if (!token) {
-            navigate("/login");
-            return;
-        }
-        setAnswerModalOpen(true);
-    }
-
-    function closeAnswer() {
-        setAnswerModalOpen(false);
-    }
-
     async function toggleBookmark() {
         if (!id || bookmarking) return;
-        const token = localStorage.getItem("token");
-        if (!token) { navigate("/login"); return; }
+        if (!localStorage.getItem("token")) { navigate("/login"); return; }
         setBookmarking(true);
         const prev = isBookmarked;
         const prevCount = bookmarkCount;
         try {
-            if (prev) {
-                setIsBookmarked(false);
-                setBookmarkCount(Math.max(0, prevCount - 1));
-                await removeBookmark(id);
-            } else {
-                setIsBookmarked(true);
-                setBookmarkCount(prevCount + 1);
-                await addBookmark(id);
-            }
+            setIsBookmarked(!prev);
+            setBookmarkCount(prev ? Math.max(0, prevCount - 1) : prevCount + 1);
+            prev ? await removeBookmark(id) : await addBookmark(id);
         } catch {
             setIsBookmarked(prev);
             setBookmarkCount(prevCount);
@@ -223,128 +147,73 @@ export default function QuestionWithId() {
         }
     }
 
+    async function handleAnswerVote(e, answerId, type) {
+        e.stopPropagation();
+        if (votingAnswerId === answerId) return;
+        if (!localStorage.getItem("token")) { navigate("/login"); return; }
+        setVotingAnswerId(answerId);
+        const currentVote = myAnswerVotes[answerId];
+
+        if (currentVote === type) {
+            setMyAnswerVotes(prev => { const n = { ...prev }; delete n[answerId]; return n; });
+            setAnswerVoteCounts(prev => ({ ...prev, [answerId]: (prev[answerId] ?? 0) - (type === "UP" ? 1 : -1) }));
+            try { await deleteVoteForAnswer(answerId); } catch {
+                setMyAnswerVotes(prev => ({ ...prev, [answerId]: type }));
+                setAnswerVoteCounts(prev => ({ ...prev, [answerId]: (prev[answerId] ?? 0) + (type === "UP" ? 1 : -1) }));
+            }
+        } else {
+            let diff = currentVote === (type === "UP" ? "DOWN" : "UP") ? (type === "UP" ? 2 : -2) : (type === "UP" ? 1 : -1);
+            setMyAnswerVotes(prev => ({ ...prev, [answerId]: type }));
+            setAnswerVoteCounts(prev => ({ ...prev, [answerId]: (prev[answerId] ?? 0) + diff }));
+            try { await voteAnswer({ answerId, type }); } catch {
+                setMyAnswerVotes(prev => currentVote ? { ...prev, [answerId]: currentVote } : (({[answerId]: _, ...n}) => n)(prev));
+                setAnswerVoteCounts(prev => ({ ...prev, [answerId]: (prev[answerId] ?? 0) - diff }));
+            }
+        }
+        setVotingAnswerId(null);
+    }
+
     if (loading) {
         return (
-            <div className="flex min-h-screen flex-col items-center justify-center gap-3 bg-[#f0f7fc] text-slate-600">
-                <Loader2 className="h-8 w-8 animate-spin text-[#1e9df1]" />
-                <span className="text-sm font-semibold">Loading question…</span>
+            <div className="flex min-h-screen flex-col items-center justify-center bg-white text-slate-400">
+                <Loader2 className="h-10 w-10 animate-spin text-blue-600 mb-4" />
+                <span className="text-xs font-black uppercase tracking-widest">Accessing Archives</span>
             </div>
         );
     }
 
-    if (error) {
+    if (error || !question) {
         return (
-            <div className="min-h-screen bg-[#f0f7fc] px-6 py-16">
+            <div className="min-h-screen bg-white px-6 py-16">
                 <div className="mx-auto max-w-5xl">
-                    <Link
-                        to="/question"
-                        className="mb-6 inline-flex items-center gap-2 text-sm font-bold text-[#1e9df1] hover:underline"
-                    >
-                        <ArrowLeft className="h-4 w-4" /> Back to questions
+                    <Link to="/question" className="mb-8 inline-flex items-center gap-2 text-xs font-black uppercase tracking-widest text-slate-900 hover:text-blue-600 transition-colors">
+                        <ArrowLeft size={16} strokeWidth={3} /> Back to questions
                     </Link>
-                    <div className="rounded-xl border border-red-300 bg-red-50 p-6 text-red-700">
-                        {error}
+                    <div className="flex items-center gap-3 border-2 border-red-100 bg-red-50 p-6 text-sm font-bold text-red-600">
+                        <Info size={20} />
+                        {error || "Question data is missing from the server."}
                     </div>
                 </div>
             </div>
         );
     }
 
-    if (!question) {
-        return (
-            <div className="min-h-screen bg-[#f0f7fc] px-6 py-16 text-center text-slate-600">
-                <p className="font-semibold">Question not found.</p>
-                <Link
-                    to="/question"
-                    className="mt-4 inline-block text-sm font-bold text-[#1e9df1] hover:underline"
-                >
-                    Back to questions
-                </Link>
-            </div>
-        );
-    }
-
-    const count = question._count ?? {};
-    const asked = formatAskedAt(question.createdAt);
-
-    async function handleAnswerVote(e, answerId, type) {
-        e.stopPropagation();
-        if (votingAnswerId === answerId) return;
-        const token = localStorage.getItem("token");
-        if (!token) { navigate("/login"); return; }
-
-        setVotingAnswerId(answerId);
-        const currentVote = myAnswerVotes[answerId];
-
-        if (currentVote === type) {
-            setMyAnswerVotes((prev) => {
-                const n = { ...prev };
-                delete n[answerId];
-                return n;
-            });
-            setAnswerVoteCounts((prev) => ({
-                ...prev,
-                [answerId]: (prev[answerId] ?? 0) - (type === "UP" ? 1 : -1),
-            }));
-            try {
-                await deleteVoteForAnswer(answerId);
-            } catch {
-                setMyAnswerVotes((prev) => ({ ...prev, [answerId]: type }));
-                setAnswerVoteCounts((prev) => ({
-                    ...prev,
-                    [answerId]: (prev[answerId] ?? 0) + (type === "UP" ? 1 : -1),
-                }));
-            }
-        } else {
-            let diff = 0;
-            if (currentVote === "UP" && type === "DOWN") diff = -2;
-            else if (currentVote === "DOWN" && type === "UP") diff = 2;
-            else if (!currentVote && type === "UP") diff = 1;
-            else if (!currentVote && type === "DOWN") diff = -1;
-
-            setMyAnswerVotes((prev) => ({ ...prev, [answerId]: type }));
-            setAnswerVoteCounts((prev) => ({
-                ...prev,
-                [answerId]: (prev[answerId] ?? 0) + diff,
-            }));
-            try {
-                await voteAnswer({ answerId, type });
-            } catch {
-                if (currentVote) {
-                    setMyAnswerVotes((prev) => ({ ...prev, [answerId]: currentVote }));
-                } else {
-                    setMyAnswerVotes((prev) => {
-                        const n = { ...prev };
-                        delete n[answerId];
-                        return n;
-                    });
-                }
-                setAnswerVoteCounts((prev) => ({
-                    ...prev,
-                    [answerId]: (prev[answerId] ?? 0) - diff,
-                }));
-            }
-        }
-
-        setVotingAnswerId(null);
-    }
-
     return (
-        <div className="min-h-screen bg-[#f0f7fc] px-6 pb-20 pt-8 font-sans text-slate-900">
-            <div className="mx-auto max-w-5xl">
+        <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100">
+            <div className="mx-auto max-w-5xl px-6 py-12">
                 <Link
                     to="/question"
-                    className="mb-6 inline-flex items-center gap-2 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-xs font-bold text-blue-600 hover:opacity-90"
+                    className="mb-10 inline-flex items-center gap-2 bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 hover:bg-blue-600 hover:text-white transition-all rounded-sm"
                 >
-                    <ArrowLeft size={14} strokeWidth={3} /> BACK TO QUESTIONS
+                    <ArrowLeft size={12} strokeWidth={4} /> Back to explorer
                 </Link>
 
-                <ul className="flex flex-col gap-4">
+                <ul className="flex flex-col">
                     <QuestionCard
                         question={question}
                         voteType={myVote}
                         votesCount={voteCount}
-                        answersCount={count.answers ?? 0}
+                        answersCount={question._count?.answers ?? 0}
                         bookmarksCount={bookmarkCount}
                         isBookmarked={isBookmarked}
                         voting={voting}
@@ -352,23 +221,32 @@ export default function QuestionWithId() {
                         onClick={() => {}}
                         onVote={(e, type) => { e.stopPropagation(); handleVote(type); }}
                         onBookmark={(e) => { e.stopPropagation(); toggleBookmark(); }}
-                        onAddAnswer={(e) => { e.stopPropagation(); openAnswer(); }}
+                        onAddAnswer={(e) => { e.stopPropagation(); setAnswerModalOpen(true); }}
                         showBody={true}
-                        showAddAnswer={true}
+                        clampBody={false}
                     />
                 </ul>
 
-
-                <section className="mt-8">
-                    <h2 className="mb-4 text-lg font-black text-[#0f1419]">
-                        Answers ({answers.length})
-                    </h2>
+                <section className="mt-16">
+                    <div className="mb-8 flex items-center justify-between border-b-2 border-slate-900 pb-4">
+                        <h2 className="flex items-center gap-3 text-2xl font-black uppercase tracking-tighter text-slate-900">
+                            <MessageCircle size={24} strokeWidth={3} className="text-blue-600" />
+                            Solutions ({answers.length})
+                        </h2>
+                    </div>
+                    
                     {answers.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-300 bg-white/80 px-6 py-10 text-center text-slate-500">
-                            No answers yet. Be the first to help.
+                        <div className="flex flex-col items-center justify-center py-24 text-center border-2 border-dashed border-slate-200 rounded-sm bg-slate-50/50">
+                            <p className="text-sm font-black uppercase text-slate-400 tracking-widest">Be the first to respond to this thread</p>
+                            <button 
+                                onClick={() => setAnswerModalOpen(true)}
+                                className="mt-6 bg-slate-950 px-8 py-3 text-xs font-black uppercase tracking-widest text-white hover:bg-blue-600 transition-colors rounded-sm"
+                            >
+                                Submit Solution
+                            </button>
                         </div>
                     ) : (
-                        <ul className="flex flex-col gap-4">
+                        <ul className="flex flex-col gap-6">
                             {answers.map((ans) => (
                                 <AnswerCard
                                     key={ans.id}
@@ -388,7 +266,7 @@ export default function QuestionWithId() {
                 open={answerModalOpen}
                 title={question?.title ?? ""}
                 questionId={id}
-                onClose={closeAnswer}
+                onClose={() => setAnswerModalOpen(false)}
                 onSubmitted={async () => {
                     if (!id) return;
                     const data = await getQuestionById(id);

@@ -1,8 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import axios from 'axios'
-
-
+import { Lock, User, Loader2, ShieldCheck } from 'lucide-react'
 
 export default function Login() {
   const navigate = useNavigate()
@@ -22,81 +21,71 @@ export default function Login() {
         { scholar, password },
         { headers: { 'Content-Type': 'application/json' } }
       )
-      if (data.token) {
-        localStorage.setItem('token', data.token)
-      }
+      if (data.token) localStorage.setItem('token', data.token)
       navigate(`/profile/${data.user.id}`)
     } catch (err) {
-      setError(err.response?.data?.error ?? err.message ?? 'Sign in failed')
+      setError(err.response?.data?.error ?? 'Invalid scholar number or password')
     } finally {
       setIsLoading(false)
     }
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-50 to-pink-100">
-      <div className="flex items-center justify-center py-16 px-6">
-        <div className="bg-white rounded-2xl shadow-2xl p-10 w-full max-w-md border border-blue-100">
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-4">
-              <div className="w-32 h-32 bg-blue-600 rounded-full flex items-center justify-center shadow-lg">
-                <img
-                  src="/manit_logo.png"
-                  alt="MANIT Logo"
-                  className="w-28 h-28 object-contain"
-                />
+    <div className="min-h-screen bg-white flex items-center justify-center p-6 font-sans selection:bg-blue-600 selection:text-white">
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center mb-6">
+            <div className="h-20 w-20 bg-slate-950 flex items-center justify-center rounded-sm border-4 border-slate-950 shadow-[6px_6px_0px_0px_rgba(30,157,241,1)]">
+              <img src="/manit_logo.png" alt="MANIT" className="h-14 w-14 object-contain " />
+            </div>
+          </div>
+          
+          <h1 className="text-3xl font-[1000] text-slate-950 tracking-tighter uppercase leading-none">Scholar Portal</h1>
+          
+          <div className="flex items-center justify-center gap-2 mt-4">
+            <div className="bg-emerald-500 text-white px-2 py-0.5 border-2 border-slate-950 shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={12} strokeWidth={3} />
+                <span className="text-[10px] font-black uppercase tracking-widest">Internal Auth</span>
               </div>
             </div>
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              Welcome Back
-            </h2>
-            <p className="text-gray-600">Please sign in to your account</p>
           </div>
+        </div>
 
+        <div className="border-4 border-slate-950 p-8 bg-white shadow-[10px_10px_0px_0px_rgba(0,0,0,0.05)]">
           {error && (
-            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded-lg">
-              {error}
+            <div className="mb-6 border-2 border-slate-950 bg-red-50 p-4 text-[10px] font-black uppercase tracking-tight text-red-600">
+              Error: {error}
             </div>
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label
-                htmlFor="scholar"
-                className="block text-sm font-semibold text-gray-700 mb-2"
-              >
-                Scholar number
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                <User size={14} strokeWidth={3} className="text-blue-600" />
+                Scholar Number
               </label>
-
               <input
                 type="text"
-                id="scholar"
-                name="scholar"
                 value={scholar}
                 onChange={(e) => setScholar(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all duration-200 text-gray-800 bg-gray-50 focus:bg-white"
-                placeholder="Enter your scholar number"
-                autoComplete="username"
+                className="w-full border-4 border-slate-950 p-4 text-sm font-bold text-slate-950 focus:border-blue-600 outline-none transition-colors placeholder:text-slate-200"
+                placeholder="21111XXXX"
                 required
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-semibold text-gray-700 mb-2"
-              >
-                Password
+            <div className="space-y-2">
+              <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-400 flex items-center gap-2">
+                <Lock size={14} strokeWidth={3} className="text-blue-600" />
+                Portal Password
               </label>
               <input
                 type="password"
-                id="password"
-                name="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 outline-none transition-all duration-200 text-gray-800 bg-gray-50 focus:bg-white"
-                placeholder="Enter your password"
-                autoComplete="current-password"
+                className="w-full border-4 border-slate-950 p-4 text-sm font-bold text-slate-950 focus:border-blue-600 outline-none transition-colors placeholder:text-slate-200"
+                placeholder="••••••••"
                 required
               />
             </div>
@@ -104,11 +93,25 @@ export default function Login() {
             <button
               type="submit"
               disabled={isLoading}
-              className={`w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold py-3 px-6 rounded-lg shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 focus:outline-none focus:ring-4 focus:ring-blue-300 ${isLoading ? 'opacity-60 cursor-not-allowed' : ''}`}
+              className="w-full bg-slate-950 text-white py-5 mt-4 text-xs font-black uppercase tracking-[0.3em] transition-all active:translate-y-1 active:shadow-none shadow-[6px_6px_0px_0px_rgba(30,157,241,1)] flex items-center justify-center gap-3"
             >
-              {isLoading ? 'Signing In...' : 'Sign In'}
+              {isLoading ? (
+                <>
+                  <Loader2 size={16} className="animate-spin" strokeWidth={3} />
+                  Verifying
+                </>
+              ) : (
+                'Enter System'
+              )}
             </button>
           </form>
+        </div>
+
+        <div className="mt-12 text-center">
+          <p className="text-[9px] font-black text-slate-300 uppercase tracking-[0.4em] leading-loose">
+            Knowledge Access Restricted to <br /> 
+            MANIT Bhopal Scholars Only
+          </p>
         </div>
       </div>
     </div>
