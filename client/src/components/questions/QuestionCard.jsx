@@ -1,6 +1,7 @@
 import MarkdownPreview from "@uiw/react-markdown-preview";
 import { Bookmark, MessageSquare, ThumbsDown, ThumbsUp } from "lucide-react";
 import { Link } from "react-router-dom";
+import { formatTagLabel } from "../../lib/formatTag.js";
 
 function formatAskedAt(iso) {
   if (!iso) return "";
@@ -118,7 +119,7 @@ export default function QuestionCard({
                       key={t.tagId ?? t.tag?.id ?? t.id ?? `${question.id}-${name}`}
                       className="shrink-0 rounded-full bg-sky-100 px-2.5 py-0.5 text-xs font-semibold text-sky-900"
                     >
-                      {name}
+                      {formatTagLabel(name)}
                     </span>
                   );
                 })}

@@ -9,6 +9,8 @@ import { getMe } from "../lib/api/user.js";
 import { getBookmarksByUser, addBookmark, removeBookmark } from "../lib/api/bookmark.js";
 
 const PAGE_SIZE = 15;
+/** Unique tags from newest questions first; cap chips at the top of the list. */
+const LATEST_TOPICS_LIMIT = 12;
 
 export default function Question() {
   const navigate = useNavigate();
@@ -236,17 +238,21 @@ export default function Question() {
     fetchPage(questions[questions.length - 1].id);
   }
 
-  const allUniqueTags = useMemo(() => {
-    const tagSet = new Set();
-    questions.forEach((q) => {
-      if (!Array.isArray(q.tags)) return;
-      q.tags.forEach((qt) => {
+  const latestTopicTags = useMemo(() => {
+    const ordered = [];
+    const seen = new Set();
+    for (const q of questions) {
+      if (!Array.isArray(q.tags)) continue;
+      for (const qt of q.tags) {
         const name =
           typeof qt?.tag?.name === "string" ? qt.tag.name.trim() : "";
-        if (name) tagSet.add(name);
-      });
-    });
-    return Array.from(tagSet).sort();
+        if (!name || seen.has(name)) continue;
+        seen.add(name);
+        ordered.push(name);
+        if (ordered.length >= LATEST_TOPICS_LIMIT) return ordered;
+      }
+    }
+    return ordered;
   }, [questions]);
 
   const filteredQuestions = useMemo(() => {
@@ -281,7 +287,7 @@ export default function Question() {
         </div>
 
         <TagFilter
-          tags={allUniqueTags}
+          tags={latestTopicTags}
           selected={selectedTags}
           onToggle={(tag) =>
             setSelectedTags((prev) =>

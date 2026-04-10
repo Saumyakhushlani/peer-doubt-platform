@@ -1,10 +1,12 @@
+import { formatTagLabel } from "../../lib/formatTag.js";
+
 export default function TagFilter({ tags, selected, onToggle, onClear }) {
   if (!Array.isArray(tags) || tags.length === 0) return null;
 
   return (
     <div className="flex flex-wrap items-center gap-2">
       <span className="mr-1 text-xs font-semibold uppercase tracking-wide text-slate-400">
-        Topics:
+        Latest topics:
       </span>
       {tags.map((tag) => {
         const isActive = selected.includes(tag);
@@ -19,7 +21,7 @@ export default function TagFilter({ tags, selected, onToggle, onClear }) {
                 : "border border-slate-200 bg-white text-slate-500 hover:border-[#1e9df1] hover:text-[#1e9df1]"
             }`}
           >
-            #{tag}
+            #{formatTagLabel(tag)}
           </button>
         );
       })}
