@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import axios from "axios";
+import QuestionCard from "../components/questions/QuestionCard";
 import {
   ArrowLeft,
   Award,
@@ -57,6 +58,9 @@ const DetailItem = ({ icon: Icon, label, value }) => (
 export default function Profile() {
   const { id } = useParams();
   const [user, setUser] = useState(null);
+  const [userQuestions, setUserQuestions] = useState([]);
+  const [userBookmarks, setUserBookmarks] = useState([]);
+  const [activeTab, setActiveTab] = useState("questions");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
 
@@ -66,10 +70,20 @@ export default function Profile() {
       setLoading(true);
       try {
         const token = localStorage.getItem("token");
-        const { data } = await axios.get(`${BASE_URL}/api/user/${id}`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        setUser(data.user);
+        const [profileRes, questionsRes, bookmarksRes] = await Promise.all([
+          axios.get(`${BASE_URL}/api/user/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${BASE_URL}/api/question/author/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          }),
+          axios.get(`${BASE_URL}/api/bookmark/user/${id}`, {
+            headers: { Authorization: `Bearer ${token}` },
+          })
+        ]);
+        setUser(profileRes.data.user);
+        setUserQuestions(questionsRes.data.questions || []);
+        setUserBookmarks(bookmarksRes.data.bookmarks || []);
       } catch (err) {
         setError(err.response?.data?.error || "Scholar Record Missing");
       } finally {
@@ -148,7 +162,6 @@ export default function Profile() {
             </div>
           </div>
 
-          {/* Metrics Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 bg-white">
             <StatCard icon={MessageSquareText} value={stats.questions} label="Questions" />
             <StatCard icon={Library} value={stats.answers} label="Solutions" />
@@ -157,7 +170,6 @@ export default function Profile() {
           </div>
         </section>
 
-        {/* Info Grid */}
         <div className="mt-12 grid grid-cols-1 md:grid-cols-12 gap-8">
           <div className="md:col-span-12 border-2 border-slate-900 p-8 md:p-12 relative overflow-hidden bg-white">
             <div className="absolute -top-10 -right-10 opacity-[0.03] pointer-events-none">
@@ -185,6 +197,47 @@ export default function Profile() {
               />
               <DetailItem icon={ShieldCheck} label="Verification Status" value="Active Member" />
             </div>
+          </div>
+        </div>
+
+        <div className="mt-12">
+          <div className="flex gap-4 mb-6 border-b-2 border-slate-900 pb-4 overflow-x-auto no-scrollbar">
+            <button
+              onClick={() => setActiveTab("questions")}
+              className={`text-xs font-black uppercase tracking-widest px-8 py-4 transition-all whitespace-nowrap ${
+                activeTab === "questions" ? "bg-slate-900 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] translate-y-[-2px]" : "bg-white text-slate-900 border-2 border-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              Asked Questions
+            </button>
+            <button
+              onClick={() => setActiveTab("bookmarks")}
+              className={`text-xs font-black uppercase tracking-widest px-8 py-4 transition-all whitespace-nowrap ${
+                activeTab === "bookmarks" ? "bg-slate-900 text-white shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] translate-y-[-2px]" : "bg-white text-slate-900 border-2 border-slate-900 hover:bg-slate-50"
+              }`}
+            >
+              Bookmarked
+            </button>
+          </div>
+          <div className="flex flex-col gap-6">
+            {activeTab === "questions" && (
+              userQuestions.length > 0 ? (
+                userQuestions.map((q) => <QuestionCard key={q.id} question={q} />)
+              ) : (
+                <div className="border-4 border-slate-900 p-12 text-center bg-white shadow-[8px_8px_0px_0px_rgba(30,157,241,0.1)]">
+                  <p className="text-sm font-black uppercase tracking-widest text-slate-400">No questions asked yet</p>
+                </div>
+              )
+            )}
+            {activeTab === "bookmarks" && (
+              userBookmarks.length > 0 ? (
+                userBookmarks.map((b) => <QuestionCard key={b.id} question={b.question} />)
+              ) : (
+                <div className="border-4 border-slate-900 p-12 text-center bg-white shadow-[8px_8px_0px_0px_rgba(30,157,241,0.1)]">
+                  <p className="text-sm font-black uppercase tracking-widest text-slate-400">No bookmarked questions</p>
+                </div>
+              )
+            )}
           </div>
         </div>
 
