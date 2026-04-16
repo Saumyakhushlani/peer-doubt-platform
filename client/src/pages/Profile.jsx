@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useNavigate } from "react-router-dom";
 import axios from "axios";
-import QuestionCard from "../components/questions/QuestionCard";
+import QuestionCard from "../components/questions/QuestionCard.jsx";
+import AnswerModal from "../components/questions/AnswerModal.jsx";
+import { getMyVotes, deleteVoteForQuestion, voteQuestion } from "../lib/api/vote.js";
+import { getMe } from "../lib/api/user.js";
+import { getBookmarksByUser, addBookmark, removeBookmark } from "../lib/api/bookmark.js";
 import {
   ArrowLeft,
   Award,
@@ -57,12 +61,102 @@ const DetailItem = ({ icon: Icon, label, value }) => (
 
 export default function Profile() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const [user, setUser] = useState(null);
   const [userQuestions, setUserQuestions] = useState([]);
   const [userBookmarks, setUserBookmarks] = useState([]);
   const [activeTab, setActiveTab] = useState("questions");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  const [myVotes, setMyVotes] = useState({});
+  const [voteCounts, setVoteCounts] = useState({});
+  const [votingId, setVotingId] = useState(null);
+
+  const [myBookmarks, setMyBookmarks] = useState({});
+  const [bookmarkCounts, setBookmarkCounts] = useState({});
+  const [bookmarkingId, setBookmarkingId] = useState(null);
+
+  const [answerCounts, setAnswerCounts] = useState({});
+  const [answerModalId, setAnswerModalId] = useState(null);
+  const [answerModalTitle, setAnswerModalTitle] = useState("");
+
+  useEffect(() => {
+    async function initUserData() {
+      const token = localStorage.getItem("token");
+      if (!token) return;
+      try {
+        const [votesData, me] = await Promise.all([getMyVotes(), getMe()]);
+        
+        const voteMap = {};
+        (votesData.votes ?? []).forEach(v => { if (v.questionId) voteMap[v.questionId] = v.type; });
+        setMyVotes(voteMap);
+
+        if (me?.userId) {
+          const bookmarkData = await getBookmarksByUser(me.userId);
+          const bookmarkMap = {};
+          (bookmarkData.bookmarks ?? []).forEach(b => { if (b.questionId) bookmarkMap[b.questionId] = true; });
+          setMyBookmarks(bookmarkMap);
+        }
+      } catch (e) {}
+    }
+    initUserData();
+  }, []);
+
+  async function handleVote(e, questionId, type) {
+    e.stopPropagation();
+    if (votingId === questionId) return;
+    const token = localStorage.getItem("token");
+    if (!token) { navigate("/login"); return; }
+
+    const currentVoteType = myVotes[questionId];
+    setVotingId(questionId);
+
+    if (currentVoteType === type) {
+      setMyVotes(prev => { const n = { ...prev }; delete n[questionId]; return n; });
+      setVoteCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - (type === "UP" ? 1 : -1) }));
+      try { await deleteVoteForQuestion(questionId); } catch {
+        setMyVotes(prev => ({ ...prev, [questionId]: type }));
+        setVoteCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + (type === "UP" ? 1 : -1) }));
+      }
+    } else {
+      let diff = currentVoteType === (type === "UP" ? "DOWN" : "UP") ? (type === "UP" ? 2 : -2) : (type === "UP" ? 1 : -1);
+      setMyVotes(prev => ({ ...prev, [questionId]: type }));
+      setVoteCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + diff }));
+      try { await voteQuestion({ type, questionId }); } catch {
+        setMyVotes(prev => currentVoteType ? { ...prev, [questionId]: currentVoteType } : (({ [questionId]: _, ...n }) => n)(prev));
+        setVoteCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? 0) - diff }));
+      }
+    }
+    setVotingId(null);
+  }
+
+  async function handleBookmark(e, questionId, currentCount) {
+    e.stopPropagation();
+    if (bookmarkingId === questionId) return;
+    if (!localStorage.getItem("token")) { navigate("/login"); return; }
+
+    const isOn = !!myBookmarks[questionId];
+    setBookmarkingId(questionId);
+
+    setMyBookmarks(prev => isOn ? (({ [questionId]: _, ...n }) => n)(prev) : { ...prev, [questionId]: true });
+    setBookmarkCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? currentCount) + (isOn ? -1 : 1) }));
+
+    try {
+      isOn ? await removeBookmark(questionId) : await addBookmark(questionId);
+    } catch {
+      setMyBookmarks(prev => isOn ? { ...prev, [questionId]: true } : (({ [questionId]: _, ...n }) => n)(prev));
+      setBookmarkCounts(prev => ({ ...prev, [questionId]: (prev[questionId] ?? 0) + (isOn ? 1 : -1) }));
+    }
+    setBookmarkingId(null);
+  }
+
+  function openAnswerModal(e, question) {
+    e.stopPropagation();
+    if (!localStorage.getItem("token")) { navigate("/login"); return; }
+    setAnswerModalId(question.id);
+    setAnswerModalTitle(question.title ?? "");
+  }
 
   useEffect(() => {
     if (!id) return setLoading(false);
@@ -82,8 +176,19 @@ export default function Profile() {
           })
         ]);
         setUser(profileRes.data.user);
-        setUserQuestions(questionsRes.data.questions || []);
-        setUserBookmarks(bookmarksRes.data.bookmarks || []);
+        
+        const qs = questionsRes.data.questions || [];
+        const bs = bookmarksRes.data.bookmarks || [];
+        setUserQuestions(qs);
+        setUserBookmarks(bs);
+        
+        const updateCounts = (batch) => {
+          setVoteCounts(prev => ({ ...prev, ...Object.fromEntries(batch.map(q => [q.id, q._count?.votes ?? 0])) }));
+          setBookmarkCounts(prev => ({ ...prev, ...Object.fromEntries(batch.map(q => [q.id, q._count?.bookmarks ?? 0])) }));
+          setAnswerCounts(prev => ({ ...prev, ...Object.fromEntries(batch.map(q => [q.id, q._count?.answers ?? 0])) }));
+        };
+        updateCounts(qs);
+        updateCounts(bs.map(b => b.question));
       } catch (err) {
         setError(err.response?.data?.error || "Scholar Record Missing");
       } finally {
@@ -222,7 +327,23 @@ export default function Profile() {
           <div className="flex flex-col gap-6">
             {activeTab === "questions" && (
               userQuestions.length > 0 ? (
-                userQuestions.map((q) => <QuestionCard key={q.id} question={q} />)
+                userQuestions.map((q) => (
+                  <QuestionCard
+                    key={q.id}
+                    question={q}
+                    voteType={myVotes[q.id]}
+                    votesCount={voteCounts[q.id] ?? q._count?.votes ?? 0}
+                    answersCount={answerCounts[q.id] ?? q._count?.answers ?? 0}
+                    bookmarksCount={bookmarkCounts[q.id] ?? q._count?.bookmarks ?? 0}
+                    isBookmarked={!!myBookmarks[q.id]}
+                    voting={votingId === q.id}
+                    bookmarking={bookmarkingId === q.id}
+                    onClick={() => navigate(`/question/${q.id}`)}
+                    onVote={(e, type) => handleVote(e, q.id, type)}
+                    onBookmark={(e) => handleBookmark(e, q.id, q._count?.bookmarks ?? 0)}
+                    onAddAnswer={(e) => openAnswerModal(e, q)}
+                  />
+                ))
               ) : (
                 <div className="border-4 border-slate-900 p-12 text-center bg-white shadow-[8px_8px_0px_0px_rgba(30,157,241,0.1)]">
                   <p className="text-sm font-black uppercase tracking-widest text-slate-400">No questions asked yet</p>
@@ -231,7 +352,23 @@ export default function Profile() {
             )}
             {activeTab === "bookmarks" && (
               userBookmarks.length > 0 ? (
-                userBookmarks.map((b) => <QuestionCard key={b.id} question={b.question} />)
+                userBookmarks.map((b) => (
+                  <QuestionCard
+                    key={b.id}
+                    question={b.question}
+                    voteType={myVotes[b.question.id]}
+                    votesCount={voteCounts[b.question.id] ?? b.question._count?.votes ?? 0}
+                    answersCount={answerCounts[b.question.id] ?? b.question._count?.answers ?? 0}
+                    bookmarksCount={bookmarkCounts[b.question.id] ?? b.question._count?.bookmarks ?? 0}
+                    isBookmarked={!!myBookmarks[b.question.id]}
+                    voting={votingId === b.question.id}
+                    bookmarking={bookmarkingId === b.question.id}
+                    onClick={() => navigate(`/question/${b.question.id}`)}
+                    onVote={(e, type) => handleVote(e, b.question.id, type)}
+                    onBookmark={(e) => handleBookmark(e, b.question.id, b.question._count?.bookmarks ?? 0)}
+                    onAddAnswer={(e) => openAnswerModal(e, b.question)}
+                  />
+                ))
               ) : (
                 <div className="border-4 border-slate-900 p-12 text-center bg-white shadow-[8px_8px_0px_0px_rgba(30,157,241,0.1)]">
                   <p className="text-sm font-black uppercase tracking-widest text-slate-400">No bookmarked questions</p>
@@ -247,6 +384,16 @@ export default function Profile() {
           </p>
         </footer>
       </div>
+      <AnswerModal
+        open={!!answerModalId}
+        title={answerModalTitle}
+        questionId={answerModalId}
+        onClose={() => { setAnswerModalId(null); setAnswerModalTitle(""); }}
+        onSubmitted={() => {
+          const qid = answerModalId;
+          if (qid) setAnswerCounts(prev => ({ ...prev, [qid]: (prev[qid] ?? 0) + 1 }));
+        }}
+      />
     </div>
   );
 }
