@@ -45,6 +45,7 @@ export default function QuestionCard({
   clampBody = true,
 }) {
   const author = question.author;
+  const hasAuthorProfile = Boolean(question.authorId);
   const tagRows = Array.isArray(question.tags) ? question.tags : [];
   const asked = formatAskedAt(question.createdAt);
 
@@ -54,25 +55,37 @@ export default function QuestionCard({
       className="group cursor-pointer border-b-2 border-slate-900 bg-white p-6 transition-all hover:bg-slate-50"
     >
       <div className="flex items-start gap-4">
-        <Link
-          to={`/profile/${question.authorId}`}
-          className="shrink-0"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <div className="flex h-12 w-12 items-center justify-center bg-blue-600 text-sm font-black text-white rounded-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
-            {nameInitials(author?.name)}
+        {hasAuthorProfile ? (
+          <Link
+            to={`/profile/${question.authorId}`}
+            className="shrink-0"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex h-12 w-12 items-center justify-center bg-blue-600 text-sm font-black text-white rounded-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              {nameInitials(author?.name)}
+            </div>
+          </Link>
+        ) : (
+          <div className="shrink-0">
+            <div className="flex h-12 w-12 items-center justify-center bg-slate-700 text-sm font-black text-white rounded-sm shadow-[3px_3px_0px_0px_rgba(0,0,0,1)]">
+              {nameInitials(author?.name)}
+            </div>
           </div>
-        </Link>
+        )}
 
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
-            <Link
-              to={`/profile/${question.authorId}`}
-              className="text-blue-600 hover:text-blue-700"
-              onClick={(e) => e.stopPropagation()}
-            >
-              {author?.name ?? "Unknown"}
-            </Link>
+            {hasAuthorProfile ? (
+              <Link
+                to={`/profile/${question.authorId}`}
+                className="text-blue-600 hover:text-blue-700"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {author?.name ?? "Unknown"}
+              </Link>
+            ) : (
+              <span className="text-slate-500">{author?.name ?? "Unknown"}</span>
+            )}
             <span>•</span>
             <span>{asked}</span>
             {author?.department && (

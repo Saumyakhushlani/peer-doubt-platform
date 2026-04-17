@@ -2,9 +2,9 @@ import prisma from "../config/prisma.js";
 
 const ANONYMOUS_AUTHOR_NAME = "Anonymous Question";
 
-const maskAnonymousQuestionAuthor = (question, viewerId) => {
+const maskAnonymousQuestionAuthor = (question, { viewerId, revealForOwner = false } = {}) => {
     const isOwner = viewerId && question.authorId === viewerId;
-    if (!question.isAnonymous || isOwner) return question;
+    if (!question.isAnonymous || (revealForOwner && isOwner)) return question;
 
     const {
         authorId,
@@ -112,7 +112,9 @@ export const getQuestionsByAuthor = async (id, viewerId) => {
             },
         },
     });
-    return questions.map((question) => maskAnonymousQuestionAuthor(question, viewerId));
+    return questions.map((question) =>
+        maskAnonymousQuestionAuthor(question, { viewerId, revealForOwner: true })
+    );
 };
 
 export const getQuestionById = async (id, viewerId) => {
@@ -185,7 +187,7 @@ export const getQuestionById = async (id, viewerId) => {
         tags: question?.tags?.map((qt) => qt.tag) ?? [],
     };
 
-    return maskAnonymousQuestionAuthor(transformedQuestion, viewerId);
+    return maskAnonymousQuestionAuthor(transformedQuestion, { viewerId });
 };
 
 export const getQuestionsByTag = async (tag) => {
@@ -264,7 +266,7 @@ export const getQuestions = async (cursor, viewerId, limit=15) => {
             }
         };
 
-        return maskAnonymousQuestionAuthor(transformedQuestion, viewerId);
+        return maskAnonymousQuestionAuthor(transformedQuestion, { viewerId });
     });
 
     return {

@@ -20,6 +20,7 @@ export default function CreateQuestion() {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [tagInput, setTagInput] = useState("");
+  const [isAnonymous, setIsAnonymous] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
@@ -46,7 +47,7 @@ export default function CreateQuestion() {
       const tags = parseTags(tagInput);
       const { data } = await api.post(
         "/question",
-        { title: trimmedTitle, body, tags },
+        { title: trimmedTitle, body, tags, isAnonymous },
         { headers: { "Content-Type": "application/json", ...authHeader() } }
       );
       const q = data?.question;
@@ -156,6 +157,27 @@ export default function CreateQuestion() {
                 Separate with commas. Helps others find your thread.
               </p>
             </div>
+
+            <label
+              htmlFor="isAnonymous"
+              className="flex items-start gap-3 rounded-xl border-2 border-slate-300 bg-slate-50 px-4 py-3 transition-all hover:border-[#1e9df1]"
+            >
+              <input
+                id="isAnonymous"
+                type="checkbox"
+                checked={isAnonymous}
+                onChange={(e) => setIsAnonymous(e.target.checked)}
+                className="mt-1 h-4 w-4 cursor-pointer rounded border-slate-400 text-[#1e9df1] focus:ring-sky-300"
+              />
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-slate-700">
+                  Post anonymously
+                </p>
+                <p className="mt-1 text-xs font-medium text-slate-500">
+                  Your name and profile will be hidden from other users.
+                </p>
+              </div>
+            </label>
 
             <div className="flex flex-wrap items-center gap-3 pt-2">
               <button
