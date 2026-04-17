@@ -2,8 +2,8 @@ import { createQuestion, getQuestionsByAuthor, getQuestionById, getQuestionsByTa
 
 export const createQuestionController = async (req, res) => {
     try {
-        const { title, body, tags } = req.body;
-        const question = await createQuestion({ title, body, tags, authorId: req.userId });
+        const { title, body, tags, isAnonymous } = req.body;
+        const question = await createQuestion({ title, body, tags, isAnonymous, authorId: req.userId });
         res.status(201).json({ question });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -13,7 +13,7 @@ export const createQuestionController = async (req, res) => {
 export const getQuestionsByAuthorController = async (req, res) => {
     try {
         const { id } = req.params;
-        const questions = await getQuestionsByAuthor(id);
+        const questions = await getQuestionsByAuthor(id, req.userId);
         res.status(200).json({ questions });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -23,7 +23,7 @@ export const getQuestionsByAuthorController = async (req, res) => {
 export const getQuestionByIdController = async (req, res) => {
     try {
         const { id } = req.params;
-        const question = await getQuestionById(id);
+        const question = await getQuestionById(id, req.userId);
         res.status(200).json({ question });
     } catch (error) {
         res.status(500).json({ error: error.message });
@@ -43,7 +43,7 @@ export const getQuestionsByTagController = async (req, res) => {
 export const getQuestionsController = async (req, res) => {
     try {
         const { cursor } = req.query;
-        const { questions, hasMore } = await getQuestions(cursor);
+        const { questions, hasMore } = await getQuestions(cursor, req.userId);
         res.status(200).json({ questions, hasMore });
     } catch (error) {
         res.status(500).json({ error: error.message });

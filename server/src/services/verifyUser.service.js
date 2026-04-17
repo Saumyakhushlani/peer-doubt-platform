@@ -35,7 +35,7 @@ export const verifyUser = async ({ scholar, password }) => {
   if (!existingUser) {
 
     const agent = new https.Agent({
-      rejectUnauthorized: false, // Disable SSL verification
+      rejectUnauthorized: false, 
     });
 
     const { data } = await axios.post(

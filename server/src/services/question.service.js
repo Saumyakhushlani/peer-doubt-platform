@@ -1,13 +1,34 @@
 import prisma from "../config/prisma.js";
 
+const ANONYMOUS_AUTHOR_NAME = "Anonymous Question";
+
+const maskAnonymousQuestionAuthor = (question, viewerId) => {
+    const isOwner = viewerId && question.authorId === viewerId;
+    if (!question.isAnonymous || isOwner) return question;
+
+    const {
+        authorId,
+        author,
+        ...rest
+    } = question;
+
+    return {
+        ...rest,
+        author: {
+            name: ANONYMOUS_AUTHOR_NAME,
+        },
+    };
+};
+
 export const createQuestion = async (data) => {
-    const { title, body, authorId, tags } = data;
+    const { title, body, authorId, tags, isAnonymous = false } = data;
 
     const question = await prisma.question.create({
         data: {
             title,
             body,
             authorId,
+            isAnonymous: Boolean(isAnonymous),
         },
     });
 
@@ -66,7 +87,7 @@ export const createQuestion = async (data) => {
     };
 };
 
-export const getQuestionsByAuthor = async (id) => {
+export const getQuestionsByAuthor = async (id, viewerId) => {
     const questions = await prisma.question.findMany({
         where: {
             authorId: id,
@@ -91,10 +112,10 @@ export const getQuestionsByAuthor = async (id) => {
             },
         },
     });
-    return questions;
+    return questions.map((question) => maskAnonymousQuestionAuthor(question, viewerId));
 };
 
-export const getQuestionById = async (id) => {
+export const getQuestionById = async (id, viewerId) => {
     const question = await prisma.question.findUnique({
         where: {
             id: id,
@@ -155,7 +176,7 @@ export const getQuestionById = async (id) => {
     const netVotes = question.votes ? question.votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0) : 0;
     delete question.votes;
     
-    return {
+    const transformedQuestion = {
         ...question,
         _count: {
             ...question._count,
@@ -163,6 +184,8 @@ export const getQuestionById = async (id) => {
         },
         tags: question?.tags?.map((qt) => qt.tag) ?? [],
     };
+
+    return maskAnonymousQuestionAuthor(transformedQuestion, viewerId);
 };
 
 export const getQuestionsByTag = async (tag) => {
@@ -178,7 +201,7 @@ export const getQuestionsByTag = async (tag) => {
     return questions;
 };
 
-export const getQuestions = async (cursor, limit=15) => {
+export const getQuestions = async (cursor, viewerId, limit=15) => {
     const questions = await prisma.question.findMany({
         take: limit,
         skip: cursor ? 1 : 0,
@@ -233,13 +256,15 @@ export const getQuestions = async (cursor, limit=15) => {
     const computedQuestions = questions.map(q => {
         const netVotes = q.votes ? q.votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0) : 0;
         delete q.votes;
-        return {
+        const transformedQuestion = {
             ...q,
             _count: {
                 ...q._count,
                 votes: netVotes
             }
         };
+
+        return maskAnonymousQuestionAuthor(transformedQuestion, viewerId);
     });
 
     return {
