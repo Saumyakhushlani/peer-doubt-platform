@@ -200,7 +200,7 @@ export default function QuestionWithId() {
 
     return (
         <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100">
-            <div className="mx-auto max-w-5xl px-6 py-12">
+            <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
                 <Link
                     to="/question"
                     className="mb-10 inline-flex items-center gap-2 bg-slate-100 px-4 py-2 text-[10px] font-black uppercase tracking-[0.2em] text-slate-600 hover:bg-blue-600 hover:text-white transition-all rounded-sm"
@@ -208,7 +208,7 @@ export default function QuestionWithId() {
                     <ArrowLeft size={12} strokeWidth={4} /> Back to explorer
                 </Link>
 
-                <ul className="flex flex-col">
+                <ul className="m-0 list-none flex flex-col p-0">
                     <QuestionCard
                         question={question}
                         voteType={myVote}
@@ -246,7 +246,7 @@ export default function QuestionWithId() {
                             </button>
                         </div>
                     ) : (
-                        <ul className="flex flex-col gap-6">
+                        <ul className="m-0 list-none flex flex-col gap-6 p-0">
                             {answers.map((ans) => (
                                 <AnswerCard
                                     key={ans.id}

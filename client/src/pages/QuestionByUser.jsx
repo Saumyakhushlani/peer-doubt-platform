@@ -51,7 +51,7 @@ export default function QuestionByUser() {
             <Loader2 className="h-8 w-8 animate-spin text-slate-400" />
           </div>
         ) : (
-          <ul className="flex flex-col gap-4">
+          <ul className="m-0 list-none flex flex-col gap-4 p-0">
             {questions.map((q) => {
               const c = q._count ?? {};
               return (

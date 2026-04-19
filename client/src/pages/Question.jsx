@@ -175,7 +175,7 @@ export default function Question() {
 
   return (
     <div className="min-h-screen bg-white font-sans text-slate-900 selection:bg-blue-100">
-      <div className="mx-auto max-w-5xl px-6 py-12">
+      <div className="mx-auto max-w-5xl px-4 py-10 sm:px-6 sm:py-12">
         <header className="mb-10 flex flex-col items-start justify-between gap-6 border-b-2 border-slate-900 pb-8 md:flex-row md:items-end">
           <div>
             <h1 className="text-4xl font-black tracking-tighter uppercase md:text-5xl">Explorer</h1>
