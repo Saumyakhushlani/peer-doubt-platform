@@ -1,4 +1,3 @@
-/** Display label: first character uppercase, rest unchanged. */
 export function formatTagLabel(name) {
   if (!name || typeof name !== "string") return "";
   const t = name.trim();

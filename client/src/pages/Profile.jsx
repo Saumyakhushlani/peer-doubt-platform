@@ -249,7 +249,7 @@ export default function Profile() {
                         {user?.department}
                       </span>
                       <span className="text-[10px] font-black uppercase tracking-widest bg-slate-100 text-slate-600 px-3 py-1.5 border border-slate-200">
-                        Class of {user?.year + 4} // Year {user?.year}
+                        Class of {user?.year + 4} · Year {user?.year}
                       </span>
                     </div>
                   </div>
@@ -380,7 +380,7 @@ export default function Profile() {
 
         <footer className="mt-24 border-t-2 border-slate-100 pt-10 flex flex-col items-center">
           <p className="text-[10px] font-black uppercase tracking-[0.5em] text-slate-300 text-center leading-loose italic">
-            "Knowledge Shared is Knowledge Gained" // PeerDoubt System v1.0
+            “Knowledge Shared is Knowledge Gained” — PeerDoubt System v1.0
           </p>
         </footer>
       </div>

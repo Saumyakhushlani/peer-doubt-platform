@@ -173,8 +173,7 @@ export const getQuestionById = async (id, viewerId) => {
     });
 
     if (!question) return null;
-    
-    // Compute net votes
+
     const netVotes = question.votes ? question.votes.reduce((acc, v) => acc + (v.type === 'UP' ? 1 : -1), 0) : 0;
     delete question.votes;
     

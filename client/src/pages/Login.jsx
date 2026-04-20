@@ -34,7 +34,6 @@ export default function Login() {
 
   return (
     <div className="flex min-h-[calc(100vh-4rem)] flex-col font-sans text-slate-900 selection:bg-blue-200/80 selection:text-slate-900 lg:flex-row">
-      {/* Left: brand (stacked on top on mobile) */}
       <div className="relative flex flex-col justify-center overflow-hidden bg-gradient-to-br from-blue-700 via-blue-800 to-blue-900 px-8 py-12 text-white lg:w-1/2 lg:min-h-0 lg:px-12 lg:py-16">
         <div
           className="pointer-events-none absolute inset-0 opacity-30"
@@ -74,7 +73,6 @@ export default function Login() {
         </div>
       </div>
 
-      {/* Right: form */}
       <div className="flex flex-1 flex-col justify-center bg-slate-50 px-4 py-10 lg:w-1/2 lg:bg-white lg:px-12 lg:py-16">
         <div className="mx-auto w-full max-w-md">
           <Link

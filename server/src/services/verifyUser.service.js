@@ -12,7 +12,6 @@ function parseYear(value) {
   return Number.isNaN(n) ? new Date().getFullYear() : n;
 }
 
-/** Avatar URL from name (first initial) via https://ui-avatars.com */
 function avatarUrlFromName(name) {
   const display = (name && String(name).trim()) || "?";
   const params = new URLSearchParams({

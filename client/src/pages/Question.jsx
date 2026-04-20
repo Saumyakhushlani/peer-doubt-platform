@@ -83,7 +83,9 @@ export default function Question() {
           (bookmarkData.bookmarks ?? []).forEach(b => { if (b.questionId) bookmarkMap[b.questionId] = true; });
           setMyBookmarks(bookmarkMap);
         }
-      } catch (e) { /* silent fail */ }
+      } catch {
+        void 0;
+      }
     }
     initUserData();
   }, []);

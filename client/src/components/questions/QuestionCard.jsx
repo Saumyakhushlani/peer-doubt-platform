@@ -198,7 +198,6 @@ export default function QuestionCard({
       onClick={onClick}
       className="group w-full min-w-0 cursor-pointer border-b-2 border-slate-900 bg-white p-4 transition-all hover:bg-slate-50 sm:p-6"
     >
-      {/* Mobile: avatar + meta in one row; title/body/actions full width below (no empty column under avatar) */}
       <div className="flex flex-col gap-3 sm:hidden">
         <div className="flex items-start gap-3">
           {avatarBlock}
@@ -207,7 +206,6 @@ export default function QuestionCard({
         <div className="min-w-0">{titleTagsBodyActions}</div>
       </div>
 
-      {/* sm+: classic side-by-side */}
       <div className="hidden items-start gap-4 sm:flex">
         {avatarBlock}
         <div className="min-w-0 flex-1 overflow-hidden">

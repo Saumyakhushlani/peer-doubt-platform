@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Loader2, ShieldCheck, Trash2 } from "lucide-react";
 import {
   adminLogin,
@@ -42,12 +42,13 @@ export default function Admin() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
 
-  async function loadQuestions(selectedFilter = filter) {
+  const loadQuestions = useCallback(async (selectedFilter) => {
+    const resolved = selectedFilter ?? filter;
     setLoading(true);
     setError("");
     try {
       const data = await getAdminQuestions({
-        isAnonymous: getFilterValue(selectedFilter),
+        isAnonymous: getFilterValue(resolved),
       });
       setQuestions(data.questions ?? []);
     } catch (err) {
@@ -61,13 +62,12 @@ export default function Admin() {
     } finally {
       setLoading(false);
     }
-  }
+  }, [filter]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
     loadQuestions();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isAuthenticated]);
+  }, [isAuthenticated, loadQuestions]);
 
   async function handleLogin(e) {
     e.preventDefault();
@@ -81,7 +81,6 @@ export default function Admin() {
       setIsAuthenticated(true);
       setPassword("");
       setMessage("Admin login successful");
-      await loadQuestions(filter);
     } catch (err) {
       setError(
         err?.response?.data?.error ?? err?.message ?? "Admin login failed"
@@ -211,10 +210,8 @@ export default function Admin() {
         <select
           id="anonymousFilter"
           value={filter}
-          onChange={async (e) => {
-            const value = e.target.value;
-            setFilter(value);
-            await loadQuestions(value);
+          onChange={(e) => {
+            setFilter(e.target.value);
           }}
           className="rounded-md border border-slate-300 px-3 py-2 text-sm focus:border-blue-600 focus:outline-none"
         >
