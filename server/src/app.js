@@ -1,3 +1,4 @@
+import "dotenv/config";
 import express from "express";
 import cors from "cors";
 
@@ -8,6 +9,7 @@ import voteRouter from "./routes/vote.route.js";
 import bookmarkRouter from "./routes/bookmark.route.js";
 import tagRouter from "./routes/tag.route.js";
 import questionTagRouter from "./routes/questionTag.route.js";
+import adminRouter from "./routes/admin.routes.js";
 
 const app = express();
 
@@ -21,6 +23,7 @@ app.use("/api/vote", voteRouter);
 app.use("/api/bookmark", bookmarkRouter);
 app.use("/api/tag", tagRouter);
 app.use("/api/question-tag", questionTagRouter);
+app.use("/api/admin", adminRouter);
 
 app.get("/", (req, res) => {
   res.send("API is running");
