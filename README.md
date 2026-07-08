@@ -186,7 +186,7 @@ Leaderboard features:
 
 ---
 
-## Phase 3
+### Phase 3
 
 - 🔐 MANIT portal SSO integration  
 - 🤖 AI suggested similar questions  
